@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "title": "下雨了",
+    "author": "zcy",
+    "creator": "zcy",
+    "description": "测试用例"
+  },
+  "assets": {
+    "images": {
+      "lantern": "data/images/lantern.jpg"
+    },
+    "audios": {
+      "Fifties Music - Fly Me To The Moon": "data/audio/Fifties Music - Fly Me To The Moon.mp3"
+    }
+  },
+  "timeline": [
+    {
+      "segment_id": 1,
+      "text": "今天下雨了",
+      "start_time": 0,
+      "duration": 3,
+      "background": "lantern.jpg",
+      "background_music": "Fifties Music - Fly Me To The Moon.mp3",
+      "transition_effect": "cross_fade"
+    }
+  ]
+}

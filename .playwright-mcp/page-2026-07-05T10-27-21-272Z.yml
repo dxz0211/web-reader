@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - link "编辑器" [ref=e3] [cursor=pointer]:
+      - /url: /editor
+    - link "播放器" [ref=e4] [cursor=pointer]:
+      - /url: /player
+    - link "帮助" [ref=e5] [cursor=pointer]:
+      - /url: /help
+  - heading "编辑器（开发中）" [level=1] [ref=e6]
+  - paragraph [ref=e7]:
+    - text: 此页面待完善，请查看
+    - link "帮助" [ref=e8] [cursor=pointer]:
+      - /url: /help
+    - text: 了解详情。

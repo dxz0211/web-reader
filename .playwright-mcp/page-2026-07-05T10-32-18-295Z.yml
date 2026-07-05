@@ -1,0 +1,46 @@
+- generic [active] [ref=f1e1]:
+  - navigation [ref=f1e2]:
+    - link "📖 Immersion Reader" [ref=f1e3] [cursor=pointer]:
+      - /url: /
+    - generic [ref=f1e4]:
+      - link "✏️ 编辑器" [ref=f1e5] [cursor=pointer]:
+        - /url: /editor
+      - link "▶️ 播放器" [ref=f1e6] [cursor=pointer]:
+        - /url: /player
+      - link "❓ 帮助" [ref=f1e7] [cursor=pointer]:
+        - /url: /help
+  - generic [ref=f1e8]:
+    - generic [ref=f1e9]:
+      - heading "📋 作品信息" [level=2] [ref=f1e10]
+      - generic [ref=f1e11]:
+        - generic [ref=f1e12]: 作品标题 *
+        - textbox "输入作品标题" [ref=f1e13]
+      - generic [ref=f1e14]:
+        - generic [ref=f1e15]: 原文作者 *
+        - textbox "输入原文作者" [ref=f1e16]
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]: 创作者 *
+        - textbox "输入创作者名称" [ref=f1e19]
+      - generic [ref=f1e20]:
+        - generic [ref=f1e21]: 作品简介
+        - textbox "简要描述作品内容…" [ref=f1e22]
+      - generic [ref=f1e23]:
+        - button "💾 保存" [ref=f1e24] [cursor=pointer]
+        - button "📂 打开" [ref=f1e25] [cursor=pointer]
+      - paragraph
+    - generic [ref=f1e26]:
+      - heading "📝 段落时间轴" [level=2] [ref=f1e27]
+      - button "＋ 添加段落" [ref=f1e28] [cursor=pointer]
+    - generic [ref=f1e29]:
+      - generic [ref=f1e30]:
+        - heading "🖼️ 可用图片" [level=2] [ref=f1e31]
+        - list [ref=f1e32]:
+          - listitem [ref=f1e33]:
+            - generic [ref=f1e34]: 📭
+            - paragraph [ref=f1e35]: 暂无图片
+      - generic [ref=f1e36]:
+        - heading "🎵 可用音频" [level=2] [ref=f1e37]
+        - list [ref=f1e38]:
+          - listitem [ref=f1e39]:
+            - generic [ref=f1e40]: 📭
+            - paragraph [ref=f1e41]: 暂无音频

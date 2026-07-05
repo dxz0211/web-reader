@@ -1,0 +1,115 @@
+- generic [ref=f9e1]:
+  - navigation [ref=f9e2]:
+    - link "📖 Immersion Reader" [ref=f9e3] [cursor=pointer]:
+      - /url: /
+    - generic [ref=f9e4]:
+      - link "✏️ 编辑器" [ref=f9e5] [cursor=pointer]:
+        - /url: /editor
+      - link "▶️ 播放器" [ref=f9e6] [cursor=pointer]:
+        - /url: /player
+      - link "❓ 帮助" [ref=f9e7] [cursor=pointer]:
+        - /url: /help
+  - generic [ref=f9e8]:
+    - generic [ref=f9e9]:
+      - heading "📋 作品信息" [level=2] [ref=f9e10]
+      - generic [ref=f9e11]:
+        - generic [ref=f9e12]: 作品标题 *
+        - textbox "输入作品标题" [ref=f9e13]
+      - generic [ref=f9e14]:
+        - generic [ref=f9e15]: 原文作者 *
+        - textbox "输入原文作者" [ref=f9e16]
+      - generic [ref=f9e17]:
+        - generic [ref=f9e18]: 创作者 *
+        - textbox "输入创作者名称" [ref=f9e19]
+      - generic [ref=f9e20]:
+        - generic [ref=f9e21]: 作品简介
+        - textbox "简要描述作品内容…" [ref=f9e22]
+      - generic [ref=f9e23]:
+        - button "💾 保存" [ref=f9e24] [cursor=pointer]
+        - button "📂 打开" [ref=f9e25] [cursor=pointer]
+      - paragraph
+    - generic [ref=f9e26]:
+      - heading "📝 段落时间轴" [level=2] [ref=f9e27]
+      - generic [ref=f9e44]:
+        - generic [ref=f9e77]:
+          - generic [ref=f9e78]:
+            - generic [ref=f9e79]: 📌 段落 1
+            - button "✕ 删除" [ref=f9e80] [cursor=pointer]
+          - generic [ref=f9e81]:
+            - generic [ref=f9e82]: 段落文字 *
+            - textbox "输入该段显示的文字" [ref=f9e83]: 测试第一段文字
+          - generic [ref=f9e84]:
+            - generic [ref=f9e85]:
+              - generic [ref=f9e86]: 起始时间（秒）
+              - spinbutton [ref=f9e87]: "0"
+            - generic [ref=f9e88]:
+              - generic [ref=f9e89]: 持续时长（秒）
+              - spinbutton [ref=f9e90]: "8"
+          - generic [ref=f9e91]:
+            - generic [ref=f9e92]:
+              - generic [ref=f9e93]: 背景图
+              - combobox [ref=f9e94] [cursor=pointer]:
+                - option "lantern.jpg" [selected]
+                - option "rain_street.jpg"
+            - generic [ref=f9e95]:
+              - generic [ref=f9e96]: 背景音乐
+              - combobox [ref=f9e97] [cursor=pointer]:
+                - option "-- 无 --" [selected]
+                - option "Amedeo Tommasi - Magic Waltz.mp3"
+                - option "Fifties Music - Fly Me To The Moon.mp3"
+          - generic [ref=f9e98]:
+            - generic [ref=f9e99]: 切换效果
+            - combobox [ref=f9e100] [cursor=pointer]:
+              - option "交叉淡入淡出" [selected]
+              - option "淡入"
+              - option "无效果"
+        - generic [ref=f9e101]:
+          - generic [ref=f9e102]:
+            - generic [ref=f9e103]: 📌 段落 2
+            - button "✕ 删除" [ref=f9e104] [cursor=pointer]
+          - generic [ref=f9e105]:
+            - generic [ref=f9e106]: 段落文字 *
+            - textbox "输入该段显示的文字" [ref=f9e107]
+          - generic [ref=f9e108]:
+            - generic [ref=f9e109]:
+              - generic [ref=f9e110]: 起始时间（秒）
+              - spinbutton [ref=f9e111]: "8"
+            - generic [ref=f9e112]:
+              - generic [ref=f9e113]: 持续时长（秒）
+              - spinbutton [ref=f9e114]: "8"
+          - generic [ref=f9e115]:
+            - generic [ref=f9e116]:
+              - generic [ref=f9e117]: 背景图
+              - combobox [ref=f9e118] [cursor=pointer]:
+                - option "lantern.jpg" [selected]
+                - option "rain_street.jpg"
+            - generic [ref=f9e119]:
+              - generic [ref=f9e120]: 背景音乐
+              - combobox [ref=f9e121] [cursor=pointer]:
+                - option "-- 无 --" [selected]
+                - option "Amedeo Tommasi - Magic Waltz.mp3"
+                - option "Fifties Music - Fly Me To The Moon.mp3"
+          - generic [ref=f9e122]:
+            - generic [ref=f9e123]: 切换效果
+            - combobox [ref=f9e124] [cursor=pointer]:
+              - option "交叉淡入淡出" [selected]
+              - option "淡入"
+              - option "无效果"
+      - button "＋ 添加段落" [active] [ref=f9e28] [cursor=pointer]
+    - generic [ref=f9e29]:
+      - generic [ref=f9e30]:
+        - heading "🖼️ 可用图片" [level=2] [ref=f9e31]
+        - list [ref=f9e32]:
+          - listitem [ref=f9e69]:
+            - generic "lantern.jpg" [ref=f9e70]: 🖼️ lantern.jpg
+          - listitem [ref=f9e71]:
+            - generic "rain_street.jpg" [ref=f9e72]: 🖼️ rain_street.jpg
+        - button "📤 上传图片" [ref=f9e36] [cursor=pointer]
+      - generic [ref=f9e37]:
+        - heading "🎵 可用音频" [level=2] [ref=f9e38]
+        - list [ref=f9e39]:
+          - listitem [ref=f9e73]:
+            - generic "Amedeo Tommasi - Magic Waltz.mp3" [ref=f9e74]: 🎵 Amedeo Tommasi - Magic Waltz.mp3
+          - listitem [ref=f9e75]:
+            - generic "Fifties Music - Fly Me To The Moon.mp3" [ref=f9e76]: 🎵 Fifties Music - Fly Me To The Moon.mp3
+        - button "📤 上传音频" [ref=f9e43] [cursor=pointer]

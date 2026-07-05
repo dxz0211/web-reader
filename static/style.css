@@ -109,9 +109,12 @@ body, button, input, textarea, select {
     display: grid;
     grid-template-columns: 25% 50% 25%;
     gap: 0;
-    min-height: calc(100vh - 56px);
-    max-height: calc(100vh - 56px);
+    height: calc(100vh - 56px);
     overflow: hidden;
+}
+.editor-container > .editor-panel {
+    overflow-y: auto;
+    max-height: calc(100vh - 56px);
 }
 
 .editor-panel {

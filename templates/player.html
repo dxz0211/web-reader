@@ -5,108 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>播放器 - Immersion Reader</title>
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { overflow: hidden; background: #000; font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif; }
-        #player-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #000; }
-        #bg-image {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-size: cover; background-position: center;
-            opacity: 0; transition: opacity 0.8s ease-in-out;
-        }
-        #bg-image.active { opacity: 1; }
-        #info-bar {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            color: #fff; font-size: 18px; z-index: 10; text-align: center;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-        }
-        #text-overlay {
-            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.6); padding: 20px 40px; border-radius: 10px;
-            color: #fff; font-size: 24px; text-align: center; max-width: 80%;
-            line-height: 1.6; z-index: 10; min-width: 200px;
-        }
-        #controls {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.85); padding: 10px 20px;
-            display: flex; align-items: center; justify-content: center;
-            gap: 8px; flex-wrap: wrap; z-index: 100;
-        }
-        #controls button {
-            background: #16213e; color: #fff; border: none;
-            padding: 8px 14px; border-radius: 5px; cursor: pointer;
-            font-size: 13px; font-family: inherit;
-            transition: background 0.2s; white-space: nowrap;
-        }
-        #controls button:hover { background: #0f3460; }
-        #controls button:disabled { opacity: 0.4; cursor: not-allowed; }
-        #controls input[type="range"] { width: 80px; cursor: pointer; }
-        #progress-text { color: #fff; font-size: 13px; min-width: 60px; text-align: center; }
-        .file-select { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 13px; }
-        .file-select select {
-            background: #1a1a2e; color: #fff; border: 1px solid #0f3460;
-            padding: 4px 8px; border-radius: 4px; font-family: inherit;
-        }
-        .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.7); z-index: 200;
-            justify-content: center; align-items: center;
-        }
-        .modal-overlay.show { display: flex; }
-        .modal-box {
-            background: #1a1a2e; border: 1px solid #0f3460; border-radius: 10px;
-            padding: 20px; width: 480px; max-width: 90%; max-height: 70vh; overflow-y: auto; color: #fff;
-        }
-        .modal-box h3 { margin-top: 0; margin-bottom: 12px; }
-        .modal-close { float: right; background: none; border: none; color: #aaa; font-size: 22px; cursor: pointer; }
-        .modal-close:hover { color: #fff; }
-        .slot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-        .slot-btn {
-            background: #16213e; border: 1px solid #0f3460; border-radius: 5px;
-            padding: 10px; color: #fff; cursor: pointer; text-align: left;
-            font-size: 12px; font-family: inherit; line-height: 1.5;
-        }
-        .slot-btn:hover { background: #0f3460; }
-        .slot-btn.empty { opacity: 0.35; cursor: not-allowed; }
-    </style>
 </head>
 <body>
-<div id="player-container">
-    <div id="bg-image"></div>
-    <div id="info-bar">
-        <div id="title-display"></div>
-        <div id="author-display"></div>
+<!-- 导航栏 -->
+<nav class="navbar">
+    <a class="navbar-brand" href="/">📖 Immersion Reader</a>
+    <div class="navbar-links">
+        <a href="/editor">✏️ 编辑器</a>
+        <a href="/player" class="active">▶️ 播放器</a>
+        <a href="/help">❓ 帮助</a>
     </div>
-    <div id="text-overlay"></div>
+</nav>
 
-    <div id="controls">
+<!-- 全屏播放器容器（使用 style.css 的 .player-container） -->
+<div id="player-container" class="player-container">
+    <!-- 全屏背景图（同时保留 id 给 JS，添加 class 给 CSS） -->
+    <div id="bg-image" class="player-background active"></div>
+
+    <!-- 左上角元数据 -->
+    <div id="info-bar" class="player-metadata">
+        <div id="title-display" class="player-title"></div>
+        <div id="author-display" class="player-author"></div>
+    </div>
+
+    <!-- 右上角进度 -->
+    <div id="progress-text" class="player-progress">-/--</div>
+
+    <!-- 中央文字覆盖层 -->
+    <div id="text-overlay" class="player-text-overlay">
+        <div id="text-box" class="player-text-box"></div>
+    </div>
+
+    <!-- 底部控制栏 -->
+    <div id="controls" class="player-controls">
         <div class="file-select">
             <label>作品:</label>
             <select id="file-select"><option value="">-- 选择 --</option></select>
-            <button id="load-btn" style="background:#0f3460;">加载</button>
+            <button id="load-btn" class="btn btn-primary btn-small">加载</button>
         </div>
-        <button id="play-btn" disabled>▶ 播放</button>
-        <button id="prev-btn" disabled>◀</button>
-        <button id="next-btn" disabled>▶</button>
-        <button id="start-btn" disabled>⏮ 开头</button>
-        <span id="progress-text">-/--</span>
-        <button id="save-btn" disabled>💾 存档</button>
-        <button id="loadsave-btn" disabled>📂 读档</button>
-        <button id="recall-btn" disabled>📖 回想</button>
-        <label style="color:#fff;font-size:12px;">音量</label>
-        <input type="range" id="volume-slider" min="0" max="100" value="70">
+        <button id="play-btn" class="btn btn-primary" disabled>▶ 播放</button>
+        <button id="prev-btn" class="btn btn-secondary" disabled>◀ 上段</button>
+        <button id="next-btn" class="btn btn-secondary" disabled>下段 ▶</button>
+        <button id="start-btn" class="btn btn-secondary" disabled>⏮ 开头</button>
+        <button id="save-btn" class="btn btn-secondary" disabled>💾 存档</button>
+        <button id="loadsave-btn" class="btn btn-secondary" disabled>📂 读档</button>
+        <button id="recall-btn" class="btn btn-secondary" disabled>📖 回想</button>
+        <div class="volume-slider">
+            <label>音量</label>
+            <input type="range" id="volume-slider" min="0" max="100" value="70">
+        </div>
     </div>
 </div>
 
-<div id="save-modal" class="modal-overlay"><div class="modal-box">
+<div id="save-modal" class="modal-overlay hidden"><div class="modal-dialog">
     <button class="modal-close" onclick="closeModal('save-modal')">✕</button>
-    <h3>💾 存档</h3>
+    <h2>💾 存档</h2>
     <div id="save-grid" class="slot-grid"></div>
 </div></div>
 
-<div id="load-modal" class="modal-overlay"><div class="modal-box">
+<div id="load-modal" class="modal-overlay hidden"><div class="modal-dialog">
     <button class="modal-close" onclick="closeModal('load-modal')">✕</button>
-    <h3>📂 读档</h3>
+    <h2>📂 读档</h2>
     <div id="load-grid" class="slot-grid"></div>
 </div></div>
 
@@ -116,7 +75,7 @@ let startReal = null, pauseAccum = 0, pauseAt = null;
 let audioEl = null, curAudioSrc = "";
 
 const $ = id => document.getElementById(id);
-const bgImg = $('bg-image'), txtOv = $('text-overlay');
+const bgImg = $('bg-image'), txtOv = $('text-box');
 const titleD = $('title-display'), authorD = $('author-display'), progTxt = $('progress-text');
 const selFile = $('file-select'), playBtn = $('play-btn');
 const nextBtn = $('next-btn'), prevBtn = $('prev-btn'), startBtn = $('start-btn');
@@ -278,19 +237,19 @@ volSlider.addEventListener('input', function() {
     if (audioEl) audioEl.volume = this.value / 100;
 });
 
-// 存档
+// 存档：保存按钮改为显示提示（存档/读档功能需先加载作品）
 saveBtn.addEventListener('click', function() {
     if (!imsData) return;
     openSlotGrid('save-grid', 'save');
-    $('save-modal').classList.add('show');
+    $('save-modal').classList.remove('hidden');
 });
 loadsaveBtn.addEventListener('click', function() {
     if (!imsData) return;
     openSlotGrid('load-grid', 'load');
-    $('load-modal').classList.add('show');
+    $('load-modal').classList.remove('hidden');
 });
 
-function closeModal(id) { $(id).classList.remove('show'); }
+function closeModal(id) { $(id).classList.add('hidden'); }
 
 async function openSlotGrid(gridId, mode) {
     const grid = $(gridId);
@@ -364,7 +323,7 @@ recallBtn.addEventListener('click', function() {
     alert(t);
 });
 
-// 点击遮罩关闭弹窗
+// 点击遮罩关闭弹窗（使用 style.css 的 .hidden 类）
 ['save-modal','load-modal'].forEach(id => {
     $(id).addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });

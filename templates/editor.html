@@ -7,12 +7,265 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="navbar">
-        <a href="/editor" class="active">编辑器</a>
-        <a href="/player">播放器</a>
-        <a href="/help">帮助</a>
+    <!-- 导航栏（style.css 的导航样式） -->
+    <nav class="navbar">
+        <a class="navbar-brand" href="/">📖 Immersion Reader</a>
+        <div class="navbar-links">
+            <a href="/editor" class="active">✏️ 编辑器</a>
+            <a href="/player">▶️ 播放器</a>
+            <a href="/help">❓ 帮助</a>
+        </div>
+    </nav>
+    <!-- 三栏编辑器主体（引用 style.css 的编辑器布局） -->
+    <div class="editor-container">
+        <!-- 左栏：元数据 -->
+        <div class="editor-panel editor-panel-left">
+            <h2>📋 作品信息</h2>
+            <div class="form-group">
+                <label>作品标题 *</label>
+                <input type="text" id="meta-title" placeholder="输入作品标题">
+            </div>
+            <div class="form-group">
+                <label>原文作者 *</label>
+                <input type="text" id="meta-author" placeholder="输入原文作者">
+            </div>
+            <div class="form-group">
+                <label>创作者 *</label>
+                <input type="text" id="meta-creator" placeholder="输入创作者名称">
+            </div>
+            <div class="form-group">
+                <label>作品简介</label>
+                <textarea id="meta-desc" placeholder="简要描述作品内容…" rows="3"></textarea>
+            </div>
+            <div class="flex gap-1 mt-2">
+                <button class="btn btn-primary btn-large" id="btn-save" style="flex:1;">💾 保存</button>
+                <button class="btn btn-secondary btn-large" id="btn-open" style="flex:1;">📂 打开</button>
+            </div>
+            <p id="save-status" class="text-muted mt-1" style="font-size:0.8rem;"></p>
+        </div>
+
+        <!-- 中栏：段落编辑区 -->
+        <div class="editor-panel editor-panel-center">
+            <h2>📝 段落时间轴</h2>
+            <div id="timeline-container"></div>
+            <button class="btn btn-success mt-2" id="btn-add-segment" style="width:100%;">＋ 添加段落</button>
+        </div>
+
+        <!-- 右栏：资源区 -->
+        <div class="editor-panel editor-panel-right">
+            <div class="resource-section">
+                <h2>🖼️ 可用图片</h2>
+                <ul id="image-list" class="resource-list">
+                    <li class="empty-state"><span class="empty-icon">📭</span><p>暂无图片</p></li>
+                </ul>
+                <input type="file" id="upload-image" accept="image/*" style="display:none;" onchange="uploadFile('image')">
+                <button class="btn btn-secondary btn-small mt-1" style="width:100%;" onclick="document.getElementById('upload-image').click()">📤 上传图片</button>
+            </div>
+            <div class="resource-section">
+                <h2>🎵 可用音频</h2>
+                <ul id="audio-list" class="resource-list">
+                    <li class="empty-state"><span class="empty-icon">📭</span><p>暂无音频</p></li>
+                </ul>
+                <input type="file" id="upload-audio" accept="audio/*" style="display:none;" onchange="uploadFile('audio')">
+                <button class="btn btn-secondary btn-small mt-1" style="width:100%;" onclick="document.getElementById('upload-audio').click()">📤 上传音频</button>
+            </div>
+        </div>
     </div>
-    <h1>编辑器（开发中）</h1>
-    <p>此页面待完善，请查看 <a href="/help">帮助</a> 了解详情。</p>
+
+    <!-- 文件选择弹窗（使用 style.css 的弹窗样式） -->
+    <div id="file-modal" class="modal-overlay hidden">
+        <div class="modal-dialog" style="position:relative;">
+            <button class="modal-close" onclick="closeFileModal()">✕</button>
+            <h2>📂 打开作品</h2>
+            <ul id="file-list" class="file-list">
+                <li class="empty-state"><p>加载中...</p></li>
+            </ul>
+            <div class="flex flex-center mt-2">
+                <button class="btn btn-secondary" onclick="closeFileModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/* ===========================
+   编辑器核心脚本
+   =========================== */
+let segments = [];
+let imageFiles = [];
+let audioFiles = [];
+let segmentCounter = 1;
+const $ = id => document.getElementById(id);
+
+function showToast(msg, type) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const t = document.createElement('div');
+    t.className = 'toast ' + (type === 'error' ? 'toast-error' : 'toast-success');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+}
+
+// ========== 文件上传 ==========
+async function uploadFile(type) {
+    const input = document.getElementById('upload-' + type);
+    const file = input.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+        const r = await fetch('/api/upload', { method: 'POST', body: form });
+        const d = await r.json();
+        if (d.status === 'ok') {
+            showToast('✅ 已上传: ' + d.filename, 'success');
+            await loadAssets(); // 重新加载资源列表
+        } else {
+            showToast('上传失败: ' + (d.error || ''), 'error');
+        }
+    } catch(e) { showToast('上传失败: 网络错误', 'error'); }
+    input.value = '';
+}
+
+async function loadAssets() {
+    try { imageFiles = await fetch('/api/assets/images').then(r => r.json()); renderImageList(); } catch(e) {}
+    try { audioFiles = await fetch('/api/assets/audios').then(r => r.json()); renderAudioList(); } catch(e) {}
+}
+
+function renderImageList() {
+    const ul = $('image-list');
+    if (!imageFiles.length) { ul.innerHTML = '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无图片</p></li>'; return; }
+    ul.innerHTML = imageFiles.map(f => '<li><span class="resource-name" title="'+f+'">🖼️ '+f+'</span></li>').join('');
+}
+
+function renderAudioList() {
+    const ul = $('audio-list');
+    if (!audioFiles.length) { ul.innerHTML = '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无音频</p></li>'; return; }
+    ul.innerHTML = audioFiles.map(f => '<li><span class="resource-name" title="'+f+'">🎵 '+f+'</span></li>').join('');
+}
+
+function createSegmentData(d) {
+    d = d || {};
+    const prevEnd = segments.length ? segments[segments.length-1].start_time + segments[segments.length-1].duration : 0;
+    return {
+        segment_id: segmentCounter++,
+        text: d.text || '',
+        start_time: d.start_time !== undefined ? d.start_time : prevEnd,
+        duration: d.duration !== undefined ? d.duration : 8.0,
+        background: d.background || (imageFiles.length ? imageFiles[0] : ''),
+        background_music: d.background_music || '',
+        transition_effect: d.transition_effect || 'cross_fade'
+    };
+}
+
+function addSegment(d) {
+    // 先把当前 DOM 中的编辑内容回写到 segments，避免丢失已编辑文字
+    segments = collectSegmentsFromDOM();
+    // 同步 segmentCounter 确保 ID 不重复
+    segmentCounter = segments.length + 1;
+    segments.push(createSegmentData(d || {}));
+    renderTimeline();
+}
+
+function removeSegment(idx) {
+    if (segments.length <= 1) { showToast('至少保留一个段落', 'error'); return; }
+    segments.splice(idx, 1);
+    segments.forEach((s,i) => s.segment_id = i+1);
+    segmentCounter = segments.length + 1;
+    renderTimeline();
+}
+
+function renderTimeline() {
+    const c = $('timeline-container');
+    if (!segments.length) { c.innerHTML = '<div class="empty-state"><span class="empty-icon">📝</span><p>点击下方按钮添加段落</p></div>'; return; }
+    c.innerHTML = segments.map((seg,i) => {
+        const imgs = imageFiles.map(f => '<option value="'+f+'"'+(seg.background===f?' selected':'')+'>'+f+'</option>').join('');
+        const auds = '<option value="">-- 无 --</option>' + audioFiles.map(f => '<option value="'+f+'"'+(seg.background_music===f?' selected':'')+'>'+f+'</option>').join('');
+        const effs = [{v:'cross_fade',l:'交叉淡入淡出'},{v:'fade_in',l:'淡入'},{v:'none',l:'无效果'}];
+        const effOpts = effs.map(e => '<option value="'+e.v+'"'+(seg.transition_effect===e.v?' selected':'')+'>'+e.l+'</option>').join('');
+        return '<div class="segment-card" data-index="'+i+'">'
+            +'<div class="segment-card-header"><span class="segment-title">📌 段落 '+(i+1)+'</span><button class="btn btn-danger btn-small" onclick="removeSegment('+i+')">✕ 删除</button></div>'
+            +'<div class="form-group"><label>段落文字 *</label><textarea class="seg-text" rows="2" placeholder="输入该段显示的文字">'+escapeHtml(seg.text)+'</textarea></div>'
+            +'<div class="form-row"><div class="form-group"><label>起始时间（秒）</label><input type="number" class="seg-start" value="'+seg.start_time+'" step="0.5" min="0"></div><div class="form-group"><label>持续时长（秒）</label><input type="number" class="seg-duration" value="'+seg.duration+'" step="0.5" min="1"></div></div>'
+            +'<div class="form-row"><div class="form-group"><label>背景图</label><select class="seg-bg">'+imgs+'</select></div><div class="form-group"><label>背景音乐</label><select class="seg-music">'+auds+'</select></div></div>'
+            +'<div class="form-group"><label>切换效果</label><select class="seg-effect">'+effOpts+'</select></div></div>';
+    }).join('');
+}
+
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function collectSegmentsFromDOM() {
+    const cards = document.querySelectorAll('.segment-card');
+    const r = [];
+    cards.forEach((card,i) => r.push({
+        segment_id: i+1,
+        text: card.querySelector('.seg-text').value.trim(),
+        start_time: parseFloat(card.querySelector('.seg-start').value)||0,
+        duration: parseFloat(card.querySelector('.seg-duration').value)||8,
+        background: card.querySelector('.seg-bg').value,
+        background_music: card.querySelector('.seg-music').value,
+        transition_effect: card.querySelector('.seg-effect').value
+    }));
+    return r;
+}
+
+async function saveFile() {
+    const title = $('meta-title').value.trim(), author = $('meta-author').value.trim(), creator = $('meta-creator').value.trim();
+    if (!title || !author || !creator) { showToast('请填写作品标题、原文作者和创作者','error'); return; }
+    const tl = collectSegmentsFromDOM();
+    if (!tl.length) { showToast('请至少添加一个段落','error'); return; }
+    for (let i=0;i<tl.length;i++) if (!tl[i].text) { showToast('段落'+(i+1)+'的文字不能为空','error'); return; }
+    const imgAs={},audAs={};
+    tl.forEach(s=>{ if(s.background){const a=s.background.replace(/\.[^.]+$/,''); imgAs[a]='data/images/'+s.background;} if(s.background_music){const a=s.background_music.replace(/\.[^.]+$/,''); audAs[a]='data/audio/'+s.background_music;} });
+    const ims = {version:'1.0',metadata:{title,author,creator,description:$('meta-desc').value.trim()},assets:{images:imgAs,audios:audAs},timeline:tl};
+    try {
+        const r = await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ims)});
+        const d = await r.json();
+        if (d.status==='ok') { showToast('✅ 已保存: '+d.filename,'success'); $('save-status').textContent='最近保存: '+d.filename; }
+        else showToast('保存失败: '+(d.error||'未知错误'),'error');
+    } catch(e) { showToast('保存失败: 网络错误','error'); }
+}
+
+async function openFileModal() {
+    const m=$('file-modal'),l=$('file-list'); m.classList.remove('hidden'); l.innerHTML='<li class="empty-state"><p>加载中...</p></li>';
+    try {
+        const files = await fetch('/api/files').then(r=>r.json());
+        l.innerHTML = files.length ? files.map(f=>{
+            const ef = escapeHtml(f);
+            return '<li style="display:flex;justify-content:space-between;align-items:center;">'
+                + '<span style="flex:1;cursor:pointer;" onclick="loadFile(\''+ef+'\')">📄 '+ef+'</span>'
+                + '<button class="btn btn-primary btn-small" style="margin-left:8px;" onclick="window.open(\'/player?file='+encodeURIComponent(f)+'\',\'_blank\')">▶ 播放</button>'
+                + '</li>';
+        }).join('') : '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无可用作品</p></li>';
+    } catch(e) { l.innerHTML='<li class="empty-state"><p>加载失败</p></li>'; }
+}
+function closeFileModal() { $('file-modal').classList.add('hidden'); }
+$('file-modal').addEventListener('click',function(e){if(e.target===this)closeFileModal();});
+
+async function loadFile(fn) {
+    try {
+        const r = await fetch('/api/load?file='+encodeURIComponent(fn)); if(!r.ok){showToast('文件加载失败','error');return;}
+        const d = await r.json();
+        const m = d.metadata||{};
+        $('meta-title').value=m.title||'';$('meta-author').value=m.author||'';$('meta-creator').value=m.creator||'';$('meta-desc').value=m.description||'';
+        segments=[];segmentCounter=1;
+        (d.timeline||[]).forEach(s=>{
+            let bg='',mu='';
+            if(s.background&&d.assets&&d.assets.images){const p=d.assets.images[s.background];if(p)bg=p.replace(/\\/g,'/').split('/').pop()||'';}
+            if(s.background_music&&d.assets&&d.assets.audios){const p=d.assets.audios[s.background_music];if(p)mu=p.replace(/\\/g,'/').split('/').pop()||'';}
+            segments.push({segment_id:segmentCounter++,text:s.text||'',start_time:s.start_time||0,duration:s.duration||8,background:bg,background_music:mu,transition_effect:s.transition_effect||'cross_fade'});
+        });
+        if(!segments.length)addSegment();
+        renderTimeline();closeFileModal();showToast('✅ 已加载: '+fn,'success');
+    } catch(e) { showToast('加载失败: 格式错误','error'); }
+}
+
+$('btn-save').addEventListener('click',saveFile);
+$('btn-open').addEventListener('click',openFileModal);
+$('btn-add-segment').addEventListener('click',function(){addSegment();});
+document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveFile();}});
+
+async function init() { await loadAssets(); addSegment(); }
+init();
+</script>
 </body>
 </html>

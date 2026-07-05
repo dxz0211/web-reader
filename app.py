@@ -102,6 +102,22 @@ def api_assets_images():
 def api_assets_audios():
     return jsonify(list_files(AUDIO_DIR, extensions=[".mp3", ".wav", ".ogg"]))
 
+@app.route("/api/upload", methods=["POST"])
+def api_upload():
+    f = request.files.get("file")
+    if not f or f.filename == "":
+        return jsonify({"error": "no file"}), 400
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+        target = IMAGES_DIR
+    elif ext in [".mp3", ".wav", ".ogg"]:
+        target = AUDIO_DIR
+    else:
+        return jsonify({"error": "不支持的文件格式"}), 400
+    safe_name = f.filename.replace("\\", "/").split("/")[-1]
+    f.save(os.path.join(target, safe_name))
+    return jsonify({"status": "ok", "filename": safe_name})
+
 @app.route("/api/save_progress", methods=["POST"])
 def api_save_progress():
     body = request.get_json()

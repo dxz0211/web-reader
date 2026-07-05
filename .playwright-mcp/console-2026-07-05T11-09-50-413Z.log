@@ -1,0 +1,2 @@
+[     373ms] ReferenceError: async is not defined
+    at http://localhost:5000/editor:109:1
