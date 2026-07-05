@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>播放器 - Immersion Reader</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #000; font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif; }
+        #player-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+        #bg-image {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            opacity: 0; transition: opacity 0.8s ease-in-out;
+        }
+        #bg-image.active { opacity: 1; }
+        #info-bar {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            color: #fff; font-size: 18px; z-index: 10; text-align: center;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+        #text-overlay {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.6); padding: 20px 40px; border-radius: 10px;
+            color: #fff; font-size: 24px; text-align: center; max-width: 80%;
+            line-height: 1.6; z-index: 10; min-width: 200px;
+        }
+        #controls {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.85); padding: 10px 20px;
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; flex-wrap: wrap; z-index: 100;
+        }
+        #controls button {
+            background: #16213e; color: #fff; border: none;
+            padding: 8px 14px; border-radius: 5px; cursor: pointer;
+            font-size: 13px; font-family: inherit;
+            transition: background 0.2s; white-space: nowrap;
+        }
+        #controls button:hover { background: #0f3460; }
+        #controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+        #controls input[type="range"] { width: 80px; cursor: pointer; }
+        #progress-text { color: #fff; font-size: 13px; min-width: 60px; text-align: center; }
+        .file-select { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 13px; }
+        .file-select select {
+            background: #1a1a2e; color: #fff; border: 1px solid #0f3460;
+            padding: 4px 8px; border-radius: 4px; font-family: inherit;
+        }
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); z-index: 200;
+            justify-content: center; align-items: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: #1a1a2e; border: 1px solid #0f3460; border-radius: 10px;
+            padding: 20px; width: 480px; max-width: 90%; max-height: 70vh; overflow-y: auto; color: #fff;
+        }
+        .modal-box h3 { margin-top: 0; margin-bottom: 12px; }
+        .modal-close { float: right; background: none; border: none; color: #aaa; font-size: 22px; cursor: pointer; }
+        .modal-close:hover { color: #fff; }
+        .slot-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .slot-btn {
+            background: #16213e; border: 1px solid #0f3460; border-radius: 5px;
+            padding: 10px; color: #fff; cursor: pointer; text-align: left;
+            font-size: 12px; font-family: inherit; line-height: 1.5;
+        }
+        .slot-btn:hover { background: #0f3460; }
+        .slot-btn.empty { opacity: 0.35; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+<div id="player-container">
+    <div id="bg-image"></div>
+    <div id="info-bar">
+        <div id="title-display"></div>
+        <div id="author-display"></div>
+    </div>
+    <div id="text-overlay"></div>
+
+    <div id="controls">
+        <div class="file-select">
+            <label>作品:</label>
+            <select id="file-select"><option value="">-- 选择 --</option></select>
+            <button id="load-btn" style="background:#0f3460;">加载</button>
+        </div>
+        <button id="play-btn" disabled>▶ 播放</button>
+        <button id="prev-btn" disabled>◀</button>
+        <button id="next-btn" disabled>▶</button>
+        <button id="start-btn" disabled>⏮ 开头</button>
+        <span id="progress-text">-/--</span>
+        <button id="save-btn" disabled>💾 存档</button>
+        <button id="loadsave-btn" disabled>📂 读档</button>
+        <button id="recall-btn" disabled>📖 回想</button>
+        <label style="color:#fff;font-size:12px;">音量</label>
+        <input type="range" id="volume-slider" min="0" max="100" value="70">
+    </div>
+</div>
+
+<div id="save-modal" class="modal-overlay"><div class="modal-box">
+    <button class="modal-close" onclick="closeModal('save-modal')">✕</button>
+    <h3>💾 存档</h3>
+    <div id="save-grid" class="slot-grid"></div>
+</div></div>
+
+<div id="load-modal" class="modal-overlay"><div class="modal-box">
+    <button class="modal-close" onclick="closeModal('load-modal')">✕</button>
+    <h3>📂 读档</h3>
+    <div id="load-grid" class="slot-grid"></div>
+</div></div>
+
+<script>
+let imsData = null, curIdx = 0, isPlaying = false, timerId = null;
+let startReal = null, pauseAccum = 0, pauseAt = null;
+let audioEl = null, curAudioSrc = "";
+
+const $ = id => document.getElementById(id);
+const bgImg = $('bg-image'), txtOv = $('text-overlay');
+const titleD = $('title-display'), authorD = $('author-display'), progTxt = $('progress-text');
+const selFile = $('file-select'), playBtn = $('play-btn');
+const nextBtn = $('next-btn'), prevBtn = $('prev-btn'), startBtn = $('start-btn');
+const saveBtn = $('save-btn'), loadsaveBtn = $('loadsave-btn'), recallBtn = $('recall-btn');
+const volSlider = $('volume-slider');
+function enb(v) { [playBtn,nextBtn,prevBtn,startBtn,saveBtn,loadsaveBtn,recallBtn].forEach(b=>b.disabled=!v); }
+
+async function loadFileList() {
+    try {
+        const r = await fetch('/api/files');
+        const list = await r.json();
+        selFile.innerHTML = '<option value="">-- 选择 --</option>';
+        list.forEach(f => { const o = document.createElement('option'); o.value = f; o.textContent = f; selFile.appendChild(o); });
+        // URL 参数自动加载
+        const u = new URLSearchParams(location.search);
+        if (u.get('file')) { selFile.value = u.get('file'); doLoad(); }
+    } catch(e) {}
+}
+window.addEventListener('DOMContentLoaded', loadFileList);
+
+$('load-btn').addEventListener('click', doLoad);
+
+async function doLoad() {
+    const fn = selFile.value;
+    if (!fn) return alert('请选择文件');
+    try {
+        const r = await fetch('/api/load?file=' + encodeURIComponent(fn));
+        if (!r.ok) return alert('加载失败');
+        imsData = await r.json();
+        curIdx = 0; isPlaying = false; stopTimer();
+        if(audioEl){ audioEl.pause(); audioEl.src = ''; curAudioSrc = ''; }
+        const m = imsData.metadata || {};
+        titleD.textContent = m.title || '';
+        authorD.textContent = m.author ? ('—— ' + m.author) : '';
+        enb(true);
+        showSeg(0);
+        updProg();
+        playBtn.textContent = '▶ 播放';
+    } catch(e) { alert('加载失败'); }
+}
+
+function showSeg(idx) {
+    if (!imsData || !imsData.timeline || idx < 0 || idx >= imsData.timeline.length) return;
+    const seg = imsData.timeline[idx];
+    txtOv.textContent = seg.text || '';
+    
+    const bgKey = seg.background;
+    if (bgKey && imsData.assets && imsData.assets.images) {
+        const p = imsData.assets.images[bgKey];
+        if (p) {
+            const url = '/' + p.replace(/\\/g, '/');
+            bgImg.style.backgroundImage = 'url(' + url + ')';
+            bgImg.classList.remove('active');
+            void bgImg.offsetWidth;
+            bgImg.classList.add('active');
+        }
+    }
+    
+    const muKey = seg.background_music;
+    if (muKey && imsData.assets && imsData.assets.audios) {
+        const p = imsData.assets.audios[muKey];
+        if (p && p !== curAudioSrc) {
+            const url = '/' + p.replace(/\\/g, '/');
+            if (!audioEl) { audioEl = new Audio(); audioEl.loop = true; }
+            audioEl.src = url;
+            audioEl.volume = volSlider.value / 100;
+            if (isPlaying) audioEl.play().catch(()=>{});
+            curAudioSrc = p;
+        }
+    }
+    curIdx = idx;
+    updProg();
+}
+
+playBtn.addEventListener('click', togglePlay);
+document.addEventListener('keydown', function(e) {
+    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowRight' && !nextBtn.disabled) { doNext(); }
+    else if (e.key === 'ArrowLeft' && !prevBtn.disabled) { doPrev(); }
+});
+
+function togglePlay() {
+    if (!imsData) return;
+    if (isPlaying) { pause(); } else { resume(); }
+}
+
+function resume() {
+    if (isPlaying) return;
+    isPlaying = true;
+    playBtn.textContent = '⏸';
+    if (pauseAt !== null) { pauseAccum += (Date.now() - pauseAt) / 1000; pauseAt = null; }
+    startReal = Date.now();
+    if (audioEl && audioEl.src) audioEl.play().catch(()=>{});
+    startTimer();
+}
+
+function pause() {
+    if (!isPlaying) return;
+    isPlaying = false;
+    playBtn.textContent = '▶';
+    stopTimer();
+    pauseAt = Date.now();
+    if (audioEl) audioEl.pause();
+}
+
+function startTimer() {
+    stopTimer();
+    timerId = setInterval(check, 200);
+}
+
+function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+
+function check() {
+    if (!imsData || !imsData.timeline || !isPlaying) return;
+    const elapsed = (Date.now() - startReal) / 1000 - pauseAccum;
+    const tl = imsData.timeline;
+    let found = -1;
+    for (let i = 0; i < tl.length; i++) {
+        const s = tl[i];
+        if (s.start_time <= elapsed && elapsed < s.start_time + s.duration) { found = i; break; }
+    }
+    if (found === -1) {
+        if (elapsed >= tl[tl.length-1].start_time + tl[tl.length-1].duration) {
+            pause();
+            playBtn.textContent = '▶';
+        }
+        return;
+    }
+    if (found !== curIdx) showSeg(found);
+}
+
+function doNext() {
+    if (!imsData || !imsData.timeline || curIdx >= imsData.timeline.length - 1) return;
+    showSeg(curIdx + 1);
+    if (isPlaying) { const now = Date.now(); startReal = now; pauseAccum = 0; pauseAt = null; }
+}
+
+function doPrev() {
+    if (!imsData || !imsData.timeline || curIdx <= 0) return;
+    showSeg(curIdx - 1);
+    if (isPlaying) { const now = Date.now(); startReal = now; pauseAccum = 0; pauseAt = null; }
+}
+
+nextBtn.addEventListener('click', doNext);
+prevBtn.addEventListener('click', doPrev);
+
+startBtn.addEventListener('click', function() {
+    if (!imsData) return;
+    showSeg(0);
+    if (isPlaying) { const now = Date.now(); startReal = now; pauseAccum = 0; pauseAt = null; }
+});
+
+function updProg() {
+    if (!imsData || !imsData.timeline) { progTxt.textContent = '-/--'; return; }
+    progTxt.textContent = (curIdx+1) + '/' + imsData.timeline.length;
+}
+
+volSlider.addEventListener('input', function() {
+    if (audioEl) audioEl.volume = this.value / 100;
+});
+
+// 存档
+saveBtn.addEventListener('click', function() {
+    if (!imsData) return;
+    openSlotGrid('save-grid', 'save');
+    $('save-modal').classList.add('show');
+});
+loadsaveBtn.addEventListener('click', function() {
+    if (!imsData) return;
+    openSlotGrid('load-grid', 'load');
+    $('load-modal').classList.add('show');
+});
+
+function closeModal(id) { $(id).classList.remove('show'); }
+
+async function openSlotGrid(gridId, mode) {
+    const grid = $(gridId);
+    grid.innerHTML = '<p>加载中...</p>';
+    let list = [];
+    try { const r = await fetch('/api/list_progress'); list = await r.json(); } catch(e) {}
+    grid.innerHTML = '';
+    for (let s = 0; s < 10; s++) {
+        const info = list[s];
+        const el = document.createElement('div');
+        el.className = 'slot-btn' + (info ? '' : ' empty');
+        if (info) {
+            el.innerHTML = `<strong>槽位 ${s+1}</strong><br>${info.filename||''}<br>第${(info.segment_index||0)+1}段<br><small>${info.timestamp||''}</small>`;
+        } else {
+            el.innerHTML = `<strong>槽位 ${s+1}</strong><br><span style="color:#666;">[空]</span>`;
+        }
+        el.addEventListener('click', function() {
+            if (mode === 'save' && info) {
+                doSave(s, info);
+            } else if (mode === 'load' && info) {
+                doLoadSave(s, info);
+            }
+        });
+        grid.appendChild(el);
+    }
+}
+
+async function doSave(slot, info) {
+    const fn = selFile.value;
+    if (!fn) return alert('请先加载作品');
+    try {
+        const r = await fetch('/api/save_progress', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({slot, filename: fn, segment_index: curIdx})
+        });
+        const d = await r.json();
+        if (d.status === 'ok') { alert('已保存到槽位 ' + (slot+1)); closeModal('save-modal'); }
+        else alert('保存失败');
+    } catch(e) { alert('保存失败'); }
+}
+
+async function doLoadSave(slot, info) {
+    if (!info.filename) return alert('存档信息不完整');
+    try {
+        const r = await fetch('/api/load?file=' + encodeURIComponent(info.filename));
+        if (!r.ok) return alert('作品文件不存在，读档失败');
+        imsData = await r.json();
+        const m = imsData.metadata || {};
+        titleD.textContent = m.title || '';
+        authorD.textContent = m.author ? ('—— ' + m.author) : '';
+        let idx = (info.segment_index || 0);
+        if (idx >= imsData.timeline.length) idx = 0;
+        showSeg(idx);
+        updProg();
+        enb(true); isPlaying = false; stopTimer();
+        playBtn.textContent = '▶';
+        selFile.value = info.filename;
+        closeModal('load-modal');
+    } catch(e) { alert('读档失败'); }
+}
+
+// 回想
+recallBtn.addEventListener('click', function() {
+    if (!imsData || !imsData.timeline) return;
+    let t = '=== 回想模式 ===\n\n';
+    imsData.timeline.forEach((seg, i) => {
+        const mk = (i === curIdx) ? ' ← 当前位置' : '';
+        t += `段 ${i+1}: ${seg.text}${mk}\n`;
+    });
+    alert(t);
+});
+
+// 点击遮罩关闭弹窗
+['save-modal','load-modal'].forEach(id => {
+    $(id).addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
+});
+</script>
+</body>
+</html>

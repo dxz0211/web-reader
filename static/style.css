@@ -1,0 +1,19 @@
+body {
+    background-color: #1a1a2e;
+    color: #ffffff;
+    font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+}
+.navbar a {
+    color: #ffffff;
+    text-decoration: none;
+    margin-right: 20px;
+    padding: 6px 12px;
+    border-radius: 4px;
+}
+.navbar a.active {
+    background-color: #0f3460;
+}
+h1 { color: #ffffff; }
+p { color: #cccccc; }

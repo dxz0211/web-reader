@@ -1,0 +1,16 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e7]: "作品:"
+    - combobox [ref=e8]:
+      - option "-- 选择 --" [selected]
+    - button "加载" [ref=e9] [cursor=pointer]
+  - button "▶ 播放" [disabled] [ref=e10]
+  - button "◀" [disabled] [ref=e11]
+  - button "▶" [disabled] [ref=e12]
+  - button "⏮ 开头" [disabled] [ref=e13]
+  - generic [ref=e14]: "-/--"
+  - button "💾 存档" [disabled] [ref=e15]
+  - button "📂 读档" [disabled] [ref=e16]
+  - button "📖 回想" [disabled] [ref=e17]
+  - generic [ref=e18]: 音量
+  - slider [ref=e19] [cursor=pointer]: "70"
