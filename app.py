@@ -126,14 +126,17 @@ def api_save_progress():
     slot = body.get("slot")
     if slot is None or not (0 <= slot <= 9):
         return jsonify({"error": "slot must be 0-9"}), 400
+    fn = body.get("filename", "")
+    # 使用 filename+slot 作为存档文件名，实现项目隔离
+    safe_fn = fn.replace(".ims", "").replace("\\", "_").replace("/", "_").replace(" ", "_")
     save_data = {
         "slot": slot,
-        "filename": body.get("filename", ""),
+        "filename": fn,
         "segment_index": body.get("segment_index", 0),
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
     try:
-        filepath = os.path.join(SAVEDATA_DIR, f"save_{slot}.json")
+        filepath = os.path.join(SAVEDATA_DIR, f"save_{safe_fn}_{slot}.json")
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(save_data, f, ensure_ascii=False, indent=2)
         return jsonify({"status": "ok"})
@@ -143,9 +146,11 @@ def api_save_progress():
 @app.route("/api/load_progress")
 def api_load_progress():
     slot = request.args.get("slot", type=int)
+    fn = request.args.get("filename", "")
     if slot is None or not (0 <= slot <= 9):
         return jsonify({"error": "slot must be 0-9"}), 400
-    filepath = os.path.join(SAVEDATA_DIR, f"save_{slot}.json")
+    safe_fn = fn.replace(".ims", "").replace("\\", "_").replace("/", "_").replace(" ", "_")
+    filepath = os.path.join(SAVEDATA_DIR, f"save_{safe_fn}_{slot}.json")
     if not os.path.exists(filepath):
         return jsonify({"error": "no save data"}), 404
     try:
@@ -157,9 +162,11 @@ def api_load_progress():
 
 @app.route("/api/list_progress")
 def api_list_progress():
+    fn = request.args.get("filename", "")
+    safe_fn = fn.replace(".ims", "").replace("\\", "_").replace("/", "_").replace(" ", "_")
     result = []
     for slot in range(10):
-        filepath = os.path.join(SAVEDATA_DIR, f"save_{slot}.json")
+        filepath = os.path.join(SAVEDATA_DIR, f"save_{safe_fn}_{slot}.json")
         if os.path.exists(filepath):
             try:
                 with open(filepath, "r", encoding="utf-8") as f:

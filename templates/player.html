@@ -117,13 +117,16 @@ async function doLoad() {
     } catch(e) { alert('加载失败'); }
 }
 
+let prevBgKey = null, prevMuKey = null;
+
 function showSeg(idx) {
     if (!imsData || !imsData.timeline || idx < 0 || idx >= imsData.timeline.length) return;
     const seg = imsData.timeline[idx];
     txtOv.textContent = seg.text || '';
     
+    // 背景图：只在变化时切换
     const bgKey = seg.background;
-    if (bgKey && imsData.assets && imsData.assets.images) {
+    if (bgKey !== prevBgKey && bgKey && imsData.assets && imsData.assets.images) {
         const p = imsData.assets.images[bgKey];
         if (p) {
             const url = '/' + p.replace(/\\/g, '/');
@@ -132,10 +135,12 @@ function showSeg(idx) {
             void bgImg.offsetWidth;
             bgImg.classList.add('active');
         }
+        prevBgKey = bgKey;
     }
     
+    // 背景音乐：只在变化时切换
     const muKey = seg.background_music;
-    if (muKey && imsData.assets && imsData.assets.audios) {
+    if (muKey !== prevMuKey && muKey && imsData.assets && imsData.assets.audios) {
         const p = imsData.assets.audios[muKey];
         if (p && p !== curAudioSrc) {
             const url = '/' + p.replace(/\\/g, '/');
@@ -145,6 +150,7 @@ function showSeg(idx) {
             if (isPlaying) audioEl.play().catch(()=>{});
             curAudioSrc = p;
         }
+        prevMuKey = muKey;
     }
     curIdx = idx;
     updProg();
@@ -209,14 +215,26 @@ function check() {
 
 function doNext() {
     if (!imsData || !imsData.timeline || curIdx >= imsData.timeline.length - 1) return;
+    const nextSeg = imsData.timeline[curIdx + 1];
     showSeg(curIdx + 1);
-    if (isPlaying) { const now = Date.now(); startReal = now; pauseAccum = 0; pauseAt = null; }
+    if (isPlaying) {
+        const now = Date.now();
+        startReal = now;
+        pauseAccum = -nextSeg.start_time;
+        pauseAt = null;
+    }
 }
 
 function doPrev() {
     if (!imsData || !imsData.timeline || curIdx <= 0) return;
+    const prevSeg = imsData.timeline[curIdx - 1];
     showSeg(curIdx - 1);
-    if (isPlaying) { const now = Date.now(); startReal = now; pauseAccum = 0; pauseAt = null; }
+    if (isPlaying) {
+        const now = Date.now();
+        startReal = now;
+        pauseAccum = -prevSeg.start_time;
+        pauseAt = null;
+    }
 }
 
 nextBtn.addEventListener('click', doNext);
@@ -254,8 +272,10 @@ function closeModal(id) { $(id).classList.add('hidden'); }
 async function openSlotGrid(gridId, mode) {
     const grid = $(gridId);
     grid.innerHTML = '<p>加载中...</p>';
+    const fn = selFile.value;
+    if (!fn) { grid.innerHTML = '<p style="color:#e05555;">请先加载作品</p>'; return; }
     let list = [];
-    try { const r = await fetch('/api/list_progress'); list = await r.json(); } catch(e) {}
+    try { const r = await fetch('/api/list_progress?filename=' + encodeURIComponent(fn)); list = await r.json(); } catch(e) {}
     grid.innerHTML = '';
     for (let s = 0; s < 10; s++) {
         const info = list[s];
@@ -267,8 +287,8 @@ async function openSlotGrid(gridId, mode) {
             el.innerHTML = `<strong>槽位 ${s+1}</strong><br><span style="color:#666;">[空]</span>`;
         }
         el.addEventListener('click', function() {
-            if (mode === 'save' && info) {
-                doSave(s, info);
+            if (mode === 'save') {
+                doSave(s);
             } else if (mode === 'load' && info) {
                 doLoadSave(s, info);
             }

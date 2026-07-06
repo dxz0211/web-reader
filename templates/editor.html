@@ -91,8 +91,8 @@
    编辑器核心脚本
    =========================== */
 let segments = [];
-let imageFiles = [];
-let audioFiles = [];
+let projectImages = [];   // 当前项目的图片资源（非全局）
+let projectAudios = [];   // 当前项目的音频资源（非全局）
 let segmentCounter = 1;
 const $ = id => document.getElementById(id);
 
@@ -118,7 +118,8 @@ async function uploadFile(type) {
         const d = await r.json();
         if (d.status === 'ok') {
             showToast('✅ 已上传: ' + d.filename, 'success');
-            await loadAssets(); // 重新加载资源列表
+            if (type === 'image') { projectImages.push(d.filename); renderImageList(); }
+            else { projectAudios.push(d.filename); renderAudioList(); }
         } else {
             showToast('上传失败: ' + (d.error || ''), 'error');
         }
@@ -127,20 +128,23 @@ async function uploadFile(type) {
 }
 
 async function loadAssets() {
-    try { imageFiles = await fetch('/api/assets/images').then(r => r.json()); renderImageList(); } catch(e) {}
-    try { audioFiles = await fetch('/api/assets/audios').then(r => r.json()); renderAudioList(); } catch(e) {}
+    // 新建项目时：资源列表初始为空，用户通过上传按钮添加
+    projectImages = [];
+    projectAudios = [];
+    renderImageList();
+    renderAudioList();
 }
 
 function renderImageList() {
     const ul = $('image-list');
-    if (!imageFiles.length) { ul.innerHTML = '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无图片</p></li>'; return; }
-    ul.innerHTML = imageFiles.map(f => '<li><span class="resource-name" title="'+f+'">🖼️ '+f+'</span></li>').join('');
+    if (!projectImages.length) { ul.innerHTML = '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无图片</p></li>'; return; }
+    ul.innerHTML = projectImages.map(f => '<li><span class="resource-name" title="'+f+'">🖼️ '+f+'</span></li>').join('');
 }
 
 function renderAudioList() {
     const ul = $('audio-list');
-    if (!audioFiles.length) { ul.innerHTML = '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无音频</p></li>'; return; }
-    ul.innerHTML = audioFiles.map(f => '<li><span class="resource-name" title="'+f+'">🎵 '+f+'</span></li>').join('');
+    if (!projectAudios.length) { ul.innerHTML = '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无音频</p></li>'; return; }
+    ul.innerHTML = projectAudios.map(f => '<li><span class="resource-name" title="'+f+'">🎵 '+f+'</span></li>').join('');
 }
 
 function createSegmentData(d) {
@@ -151,7 +155,7 @@ function createSegmentData(d) {
         text: d.text || '',
         start_time: d.start_time !== undefined ? d.start_time : prevEnd,
         duration: d.duration !== undefined ? d.duration : 8.0,
-        background: d.background || (imageFiles.length ? imageFiles[0] : ''),
+        background: d.background || (projectImages.length ? projectImages[0] : ''),
         background_music: d.background_music || '',
         transition_effect: d.transition_effect || 'cross_fade'
     };
@@ -178,8 +182,8 @@ function renderTimeline() {
     const c = $('timeline-container');
     if (!segments.length) { c.innerHTML = '<div class="empty-state"><span class="empty-icon">📝</span><p>点击下方按钮添加段落</p></div>'; return; }
     c.innerHTML = segments.map((seg,i) => {
-        const imgs = imageFiles.map(f => '<option value="'+f+'"'+(seg.background===f?' selected':'')+'>'+f+'</option>').join('');
-        const auds = '<option value="">-- 无 --</option>' + audioFiles.map(f => '<option value="'+f+'"'+(seg.background_music===f?' selected':'')+'>'+f+'</option>').join('');
+        const imgs = projectImages.map(f => '<option value="'+f+'"'+(seg.background===f?' selected':'')+'>'+f+'</option>').join('');
+        const auds = '<option value="">-- 无 --</option>' + projectAudios.map(f => '<option value="'+f+'"'+(seg.background_music===f?' selected':'')+'>'+f+'</option>').join('');
         const effs = [{v:'cross_fade',l:'交叉淡入淡出'},{v:'fade_in',l:'淡入'},{v:'none',l:'无效果'}];
         const effOpts = effs.map(e => '<option value="'+e.v+'"'+(seg.transition_effect===e.v?' selected':'')+'>'+e.l+'</option>').join('');
         return '<div class="segment-card" data-index="'+i+'">'
@@ -215,7 +219,19 @@ async function saveFile() {
     if (!tl.length) { showToast('请至少添加一个段落','error'); return; }
     for (let i=0;i<tl.length;i++) if (!tl[i].text) { showToast('段落'+(i+1)+'的文字不能为空','error'); return; }
     const imgAs={},audAs={};
-    tl.forEach(s=>{ if(s.background){const a=s.background.replace(/\.[^.]+$/,''); imgAs[a]='data/images/'+s.background;} if(s.background_music){const a=s.background_music.replace(/\.[^.]+$/,''); audAs[a]='data/audio/'+s.background_music;} });
+    // 修正：timeline 中 background/background_music 存别名而非文件名
+    tl.forEach(s=>{
+        if(s.background){
+            const alias = s.background.replace(/\.[^.]+$/,'');
+            imgAs[alias] = 'data/images/'+s.background;
+            s.background = alias; // ← 关键：存储别名
+        }
+        if(s.background_music){
+            const alias = s.background_music.replace(/\.[^.]+$/,'');
+            audAs[alias] = 'data/audio/'+s.background_music;
+            s.background_music = alias; // ← 关键：存储别名
+        }
+    });
     const ims = {version:'1.0',metadata:{title,author,creator,description:$('meta-desc').value.trim()},assets:{images:imgAs,audios:audAs},timeline:tl};
     try {
         const r = await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ims)});
@@ -229,13 +245,7 @@ async function openFileModal() {
     const m=$('file-modal'),l=$('file-list'); m.classList.remove('hidden'); l.innerHTML='<li class="empty-state"><p>加载中...</p></li>';
     try {
         const files = await fetch('/api/files').then(r=>r.json());
-        l.innerHTML = files.length ? files.map(f=>{
-            const ef = escapeHtml(f);
-            return '<li style="display:flex;justify-content:space-between;align-items:center;">'
-                + '<span style="flex:1;cursor:pointer;" onclick="loadFile(\''+ef+'\')">📄 '+ef+'</span>'
-                + '<button class="btn btn-primary btn-small" style="margin-left:8px;" onclick="window.open(\'/player?file='+encodeURIComponent(f)+'\',\'_blank\')">▶ 播放</button>'
-                + '</li>';
-        }).join('') : '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无可用作品</p></li>';
+        l.innerHTML = files.length ? files.map(f=>'<li onclick="loadFile(\''+escapeHtml(f)+'\')">📄 '+escapeHtml(f)+'</li>').join('') : '<li class="empty-state"><span class="empty-icon">📭</span><p>暂无可用作品</p></li>';
     } catch(e) { l.innerHTML='<li class="empty-state"><p>加载失败</p></li>'; }
 }
 function closeFileModal() { $('file-modal').classList.add('hidden'); }
@@ -247,6 +257,23 @@ async function loadFile(fn) {
         const d = await r.json();
         const m = d.metadata||{};
         $('meta-title').value=m.title||'';$('meta-author').value=m.author||'';$('meta-creator').value=m.creator||'';$('meta-desc').value=m.description||'';
+        // 解析该项目专属的资源列表（从 assets.images 和 assets.audios）
+        projectImages=[];projectAudios=[];
+        if(d.assets){
+            if(d.assets.images){
+                Object.values(d.assets.images).forEach(p => {
+                    const fn = p.replace(/\\/g,'/').split('/').pop();
+                    if(fn && !projectImages.includes(fn)) projectImages.push(fn);
+                });
+            }
+            if(d.assets.audios){
+                Object.values(d.assets.audios).forEach(p => {
+                    const fn = p.replace(/\\/g,'/').split('/').pop();
+                    if(fn && !projectAudios.includes(fn)) projectAudios.push(fn);
+                });
+            }
+        }
+        renderImageList();renderAudioList();
         segments=[];segmentCounter=1;
         (d.timeline||[]).forEach(s=>{
             let bg='',mu='';
@@ -255,7 +282,7 @@ async function loadFile(fn) {
             segments.push({segment_id:segmentCounter++,text:s.text||'',start_time:s.start_time||0,duration:s.duration||8,background:bg,background_music:mu,transition_effect:s.transition_effect||'cross_fade'});
         });
         if(!segments.length)addSegment();
-        renderTimeline();closeFileModal();showToast('✅ 已加载: '+fn,'success');
+        renderTimeline();closeFileModal();showToast('✅ 已加载: '+fn+'（资源已自动关联）','success');
     } catch(e) { showToast('加载失败: 格式错误','error'); }
 }
 

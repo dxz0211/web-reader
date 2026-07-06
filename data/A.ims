@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "title": "A",
+    "author": "BB",
+    "creator": "zcy",
+    "description": "哈哈哈"
+  },
+  "assets": {
+    "images": {
+      "P1010348-已增强-降噪": "data/images/P1010348-已增强-降噪.jpg",
+      "lantern": "data/images/lantern.jpg",
+      "rain_street": "data/images/rain_street.jpg"
+    },
+    "audios": {
+      "Amedeo Tommasi - Magic Waltz": "data/audio/Amedeo Tommasi - Magic Waltz.mp3",
+      "Fifties Music - Fly Me To The Moon": "data/audio/Fifties Music - Fly Me To The Moon.mp3"
+    }
+  },
+  "timeline": [
+    {
+      "segment_id": 1,
+      "text": "123",
+      "start_time": 0,
+      "duration": 2,
+      "background": "P1010348-已增强-降噪.jpg",
+      "background_music": "Amedeo Tommasi - Magic Waltz.mp3",
+      "transition_effect": "cross_fade"
+    },
+    {
+      "segment_id": 2,
+      "text": "456",
+      "start_time": 2,
+      "duration": 2,
+      "background": "lantern.jpg",
+      "background_music": "Fifties Music - Fly Me To The Moon.mp3",
+      "transition_effect": "cross_fade"
+    },
+    {
+      "segment_id": 3,
+      "text": "456",
+      "start_time": 4,
+      "duration": 1.5,
+      "background": "rain_street.jpg",
+      "background_music": "Amedeo Tommasi - Magic Waltz.mp3",
+      "transition_effect": "cross_fade"
+    }
+  ]
+}

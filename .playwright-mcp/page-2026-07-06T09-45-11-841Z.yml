@@ -1,0 +1,76 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - link "📖 Immersion Reader" [ref=e3] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e4]:
+      - link "✏️ 编辑器" [ref=e5] [cursor=pointer]:
+        - /url: /editor
+      - link "▶️ 播放器" [ref=e6] [cursor=pointer]:
+        - /url: /player
+      - link "❓ 帮助" [ref=e7] [cursor=pointer]:
+        - /url: /help
+  - generic [ref=e8]:
+    - generic [ref=e9]:
+      - heading "📋 作品信息" [level=2] [ref=e10]
+      - generic [ref=e11]:
+        - generic [ref=e12]: 作品标题 *
+        - textbox "输入作品标题" [ref=e13]
+      - generic [ref=e14]:
+        - generic [ref=e15]: 原文作者 *
+        - textbox "输入原文作者" [ref=e16]
+      - generic [ref=e17]:
+        - generic [ref=e18]: 创作者 *
+        - textbox "输入创作者名称" [ref=e19]
+      - generic [ref=e20]:
+        - generic [ref=e21]: 作品简介
+        - textbox "简要描述作品内容…" [ref=e22]
+      - generic [ref=e23]:
+        - button "💾 保存" [ref=e24] [cursor=pointer]
+        - button "📂 打开" [ref=e25] [cursor=pointer]
+      - paragraph
+    - generic [ref=e26]:
+      - heading "📝 段落时间轴" [level=2] [ref=e27]
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - generic [ref=e31]: 📌 段落 1
+          - button "✕ 删除" [ref=e32] [cursor=pointer]
+        - generic [ref=e33]:
+          - generic [ref=e34]: 段落文字 *
+          - textbox "输入该段显示的文字" [ref=e35]
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: 起始时间（秒）
+            - spinbutton [ref=e39]: "0"
+          - generic [ref=e40]:
+            - generic [ref=e41]: 持续时长（秒）
+            - spinbutton [ref=e42]: "8"
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e45]: 背景图
+            - combobox [ref=e46] [cursor=pointer]
+          - generic [ref=e47]:
+            - generic [ref=e48]: 背景音乐
+            - combobox [ref=e49] [cursor=pointer]:
+              - option "-- 无 --" [selected]
+        - generic [ref=e50]:
+          - generic [ref=e51]: 切换效果
+          - combobox [ref=e52] [cursor=pointer]:
+            - option "交叉淡入淡出" [selected]
+            - option "淡入"
+            - option "无效果"
+      - button "＋ 添加段落" [ref=e53] [cursor=pointer]
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - heading "🖼️ 可用图片" [level=2] [ref=e56]
+        - list [ref=e57]:
+          - listitem [ref=e58]:
+            - generic [ref=e59]: 📭
+            - paragraph [ref=e60]: 暂无图片
+        - button "📤 上传图片" [ref=e61] [cursor=pointer]
+      - generic [ref=e62]:
+        - heading "🎵 可用音频" [level=2] [ref=e63]
+        - list [ref=e64]:
+          - listitem [ref=e65]:
+            - generic [ref=e66]: 📭
+            - paragraph [ref=e67]: 暂无音频
+        - button "📤 上传音频" [ref=e68] [cursor=pointer]
