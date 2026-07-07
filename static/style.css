@@ -394,8 +394,13 @@ body, button, input, textarea, select {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    opacity: 0;
     transition: opacity 0.8s ease-in-out;
     z-index: 1;
+}
+
+.player-background.active {
+    opacity: 1;
 }
 
 .player-background.fade-out {

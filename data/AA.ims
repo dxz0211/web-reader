@@ -8,13 +8,12 @@
   },
   "assets": {
     "images": {
-      "P1010348-已增强-降噪": "data/images/P1010348-已增强-降噪.jpg",
       "P1010194": "data/images/P1010194.jpg",
-      "lantern": "data/images/lantern.jpg"
+      "P1010348-已增强-降噪": "data/images/P1010348-已增强-降噪.jpg"
     },
     "audios": {
-      "Amedeo Tommasi - Magic Waltz": "data/audio/Amedeo Tommasi - Magic Waltz.mp3",
-      "Fifties Music - Fly Me To The Moon": "data/audio/Fifties Music - Fly Me To The Moon.mp3"
+      "Fifties Music - Fly Me To The Moon": "data/audio/Fifties Music - Fly Me To The Moon.mp3",
+      "Amedeo Tommasi - Magic Waltz": "data/audio/Amedeo Tommasi - Magic Waltz.mp3"
     }
   },
   "timeline": [
@@ -22,37 +21,41 @@
       "segment_id": 1,
       "text": "1234",
       "start_time": 0,
-      "duration": 1,
-      "background": "P1010348-已增强-降噪.jpg",
-      "background_music": "Amedeo Tommasi - Magic Waltz.mp3",
-      "transition_effect": "cross_fade"
+      "duration": 3,
+      "entry_point": true,
+      "background": "P1010194",
+      "background_music": "Fifties Music - Fly Me To The Moon",
+      "transition_effect": "fade_in"
     },
     {
       "segment_id": 2,
       "text": "4567",
-      "start_time": 1,
-      "duration": 1.5,
-      "background": "P1010194.jpg",
-      "background_music": "",
+      "start_time": 3,
+      "duration": 4,
+      "entry_point": true,
+      "background": "P1010348-已增强-降噪",
+      "background_music": "Amedeo Tommasi - Magic Waltz",
       "transition_effect": "cross_fade"
     },
     {
       "segment_id": 3,
       "text": "891011",
-      "start_time": 2.5,
+      "start_time": 7,
       "duration": 2,
-      "background": "lantern.jpg",
-      "background_music": "Fifties Music - Fly Me To The Moon.mp3",
-      "transition_effect": "cross_fade"
+      "entry_point": true,
+      "background": "P1010194",
+      "background_music": "",
+      "transition_effect": "none"
     },
     {
       "segment_id": 4,
       "text": "哈哈哈，zcy",
-      "start_time": 4.5,
-      "duration": 1.5,
-      "background": "P1010348-已增强-降噪.jpg",
+      "start_time": 9,
+      "duration": 3,
+      "entry_point": true,
+      "background": "P1010194",
       "background_music": "",
-      "transition_effect": "none"
+      "transition_effect": "cross_fade"
     }
   ]
 }

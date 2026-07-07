@@ -8,13 +8,11 @@
   },
   "assets": {
     "images": {
-      "P1010348-已增强-降噪": "data/images/P1010348-已增强-降噪.jpg",
       "lantern": "data/images/lantern.jpg",
-      "rain_street": "data/images/rain_street.jpg"
+      "P1010348-已增强-降噪": "data/images/P1010348-已增强-降噪.jpg"
     },
     "audios": {
-      "Amedeo Tommasi - Magic Waltz": "data/audio/Amedeo Tommasi - Magic Waltz.mp3",
-      "Fifties Music - Fly Me To The Moon": "data/audio/Fifties Music - Fly Me To The Moon.mp3"
+      "Amedeo Tommasi - Magic Waltz": "data/audio/Amedeo Tommasi - Magic Waltz.mp3"
     }
   },
   "timeline": [
@@ -23,8 +21,9 @@
       "text": "123",
       "start_time": 0,
       "duration": 2,
-      "background": "P1010348-已增强-降噪.jpg",
-      "background_music": "Amedeo Tommasi - Magic Waltz.mp3",
+      "entry_point": true,
+      "background": "lantern",
+      "background_music": "Amedeo Tommasi - Magic Waltz",
       "transition_effect": "cross_fade"
     },
     {
@@ -32,8 +31,9 @@
       "text": "456",
       "start_time": 2,
       "duration": 2,
-      "background": "lantern.jpg",
-      "background_music": "Fifties Music - Fly Me To The Moon.mp3",
+      "entry_point": true,
+      "background": "P1010348-已增强-降噪",
+      "background_music": "",
       "transition_effect": "cross_fade"
     },
     {
@@ -41,8 +41,9 @@
       "text": "456",
       "start_time": 4,
       "duration": 1.5,
-      "background": "rain_street.jpg",
-      "background_music": "Amedeo Tommasi - Magic Waltz.mp3",
+      "entry_point": true,
+      "background": "P1010348-已增强-降噪",
+      "background_music": "",
       "transition_effect": "cross_fade"
     }
   ]

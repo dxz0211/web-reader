@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<!-- 导航栏 -->
 <nav class="navbar">
     <a class="navbar-brand" href="/">📖 Immersion Reader</a>
     <div class="navbar-links">
@@ -17,36 +16,27 @@
     </div>
 </nav>
 
-<!-- 全屏播放器容器（使用 style.css 的 .player-container） -->
 <div id="player-container" class="player-container">
-    <!-- 全屏背景图（同时保留 id 给 JS，添加 class 给 CSS） -->
     <div id="bg-image" class="player-background active"></div>
-
-    <!-- 左上角元数据 -->
     <div id="info-bar" class="player-metadata">
         <div id="title-display" class="player-title"></div>
         <div id="author-display" class="player-author"></div>
     </div>
-
-    <!-- 右上角进度 -->
     <div id="progress-text" class="player-progress">-/--</div>
-
-    <!-- 中央文字覆盖层 -->
     <div id="text-overlay" class="player-text-overlay">
         <div id="text-box" class="player-text-box"></div>
     </div>
-
-    <!-- 底部控制栏 -->
     <div id="controls" class="player-controls">
         <div class="file-select">
             <label>作品:</label>
             <select id="file-select"><option value="">-- 选择 --</option></select>
             <button id="load-btn" class="btn btn-primary btn-small">加载</button>
         </div>
-        <button id="play-btn" class="btn btn-primary" disabled>▶ 播放</button>
+        <button id="play-btn" class="btn btn-primary" disabled>▶ 下一句</button>
         <button id="prev-btn" class="btn btn-secondary" disabled>◀ 上段</button>
         <button id="next-btn" class="btn btn-secondary" disabled>下段 ▶</button>
         <button id="start-btn" class="btn btn-secondary" disabled>⏮ 开头</button>
+        <button id="auto-btn" class="btn btn-secondary" disabled>🔄 自动</button>
         <button id="save-btn" class="btn btn-secondary" disabled>💾 存档</button>
         <button id="loadsave-btn" class="btn btn-secondary" disabled>📂 读档</button>
         <button id="recall-btn" class="btn btn-secondary" disabled>📖 回想</button>
@@ -70,18 +60,30 @@
 </div></div>
 
 <script>
-let imsData = null, curIdx = 0, isPlaying = false, timerId = null;
-let startReal = null, pauseAccum = 0, pauseAt = null;
+/* ===========================================
+   播放器核心脚本 v2.0
+   新增：句子逐句显示、打字机效果、过渡效果、
+   入口/非入口继承、播放到末尾自动回到开头
+   =========================================== */
+let imsData = null, curIdx = 0, isEnded = false;
 let audioEl = null, curAudioSrc = "";
+let curSentIdx = 0;
+let prevBgKey = null, prevMuKey = null;
+let typingTimer = null;
+// 自动播放状态
+let isAutoPlaying = false;
+let autoTimer = null;
+const SENTENCE_INTERVAL = 3000;  // 自动播放每句3秒
 
 const $ = id => document.getElementById(id);
 const bgImg = $('bg-image'), txtOv = $('text-box');
 const titleD = $('title-display'), authorD = $('author-display'), progTxt = $('progress-text');
 const selFile = $('file-select'), playBtn = $('play-btn');
 const nextBtn = $('next-btn'), prevBtn = $('prev-btn'), startBtn = $('start-btn');
+const autoBtn = $('auto-btn');
 const saveBtn = $('save-btn'), loadsaveBtn = $('loadsave-btn'), recallBtn = $('recall-btn');
 const volSlider = $('volume-slider');
-function enb(v) { [playBtn,nextBtn,prevBtn,startBtn,saveBtn,loadsaveBtn,recallBtn].forEach(b=>b.disabled=!v); }
+function enb(v) { [playBtn,nextBtn,prevBtn,startBtn,autoBtn,saveBtn,loadsaveBtn,recallBtn].forEach(b=>b.disabled=!v); }
 
 async function loadFileList() {
     try {
@@ -89,13 +91,11 @@ async function loadFileList() {
         const list = await r.json();
         selFile.innerHTML = '<option value="">-- 选择 --</option>';
         list.forEach(f => { const o = document.createElement('option'); o.value = f; o.textContent = f; selFile.appendChild(o); });
-        // URL 参数自动加载
         const u = new URLSearchParams(location.search);
         if (u.get('file')) { selFile.value = u.get('file'); doLoad(); }
     } catch(e) {}
 }
 window.addEventListener('DOMContentLoaded', loadFileList);
-
 $('load-btn').addEventListener('click', doLoad);
 
 async function doLoad() {
@@ -105,136 +105,243 @@ async function doLoad() {
         const r = await fetch('/api/load?file=' + encodeURIComponent(fn));
         if (!r.ok) return alert('加载失败');
         imsData = await r.json();
-        curIdx = 0; isPlaying = false; stopTimer();
+        curIdx = 0; isAutoPlaying = false; isEnded = false; curSentIdx = 0;
         if(audioEl){ audioEl.pause(); audioEl.src = ''; curAudioSrc = ''; }
+        prevBgKey = null; prevMuKey = null;
         const m = imsData.metadata || {};
         titleD.textContent = m.title || '';
         authorD.textContent = m.author ? ('—— ' + m.author) : '';
         enb(true);
         showSeg(0);
         updProg();
-        playBtn.textContent = '▶ 播放';
+        playBtn.textContent = '▶ 下一句';
     } catch(e) { alert('加载失败'); }
 }
 
-let prevBgKey = null, prevMuKey = null;
+function getSentences(seg) {
+    if (seg.sentences && seg.sentences.length) return seg.sentences;
+    if (seg.text) return [{id:1, text: seg.text}];
+    return [{id:1, text: ''}];
+}
+
+function applyBgTransition(effect) {
+    if (effect === 'cross_fade') {
+        bgImg.style.transition = 'opacity 1.5s ease-in-out';
+        bgImg.classList.remove('active');
+        void bgImg.offsetWidth;
+        bgImg.classList.add('active');
+    } else if (effect === 'fade_in') {
+        bgImg.style.transition = 'none';
+        bgImg.classList.remove('active');
+        void bgImg.offsetWidth;
+        bgImg.style.transition = 'opacity 1.2s ease-in';
+        bgImg.classList.add('active');
+    } else {
+        bgImg.style.transition = 'none';
+        bgImg.classList.remove('active');
+        void bgImg.offsetWidth;
+        bgImg.classList.add('active');
+    }
+}
 
 function showSeg(idx) {
     if (!imsData || !imsData.timeline || idx < 0 || idx >= imsData.timeline.length) return;
     const seg = imsData.timeline[idx];
-    txtOv.textContent = seg.text || '';
-    
-    // 背景图：只在变化时切换
-    const bgKey = seg.background;
-    if (bgKey !== prevBgKey && bgKey && imsData.assets && imsData.assets.images) {
-        const p = imsData.assets.images[bgKey];
-        if (p) {
-            const url = '/' + p.replace(/\\/g, '/');
-            bgImg.style.backgroundImage = 'url(' + url + ')';
-            bgImg.classList.remove('active');
-            void bgImg.offsetWidth;
-            bgImg.classList.add('active');
-        }
-        prevBgKey = bgKey;
-    }
-    
-    // 背景音乐：只在变化时切换
-    const muKey = seg.background_music;
-    if (muKey !== prevMuKey && muKey && imsData.assets && imsData.assets.audios) {
-        const p = imsData.assets.audios[muKey];
-        if (p && p !== curAudioSrc) {
-            const url = '/' + p.replace(/\\/g, '/');
-            if (!audioEl) { audioEl = new Audio(); audioEl.loop = true; }
-            audioEl.src = url;
-            audioEl.volume = volSlider.value / 100;
-            if (isPlaying) audioEl.play().catch(()=>{});
-            curAudioSrc = p;
-        }
-        prevMuKey = muKey;
-    }
     curIdx = idx;
+    curSentIdx = 0;
+    const sentences = getSentences(seg);
+    if (sentences.length > 0) {
+        typewriterText(sentences[0].text || '');
+    } else {
+        txtOv.textContent = '';
+    }
+    if (seg.entry_point !== false) {
+        const effect = seg.transition_effect || 'cross_fade';
+        const bgKey = seg.background;
+        if (bgKey && imsData.assets && imsData.assets.images) {
+            const p = imsData.assets.images[bgKey];
+            if (p) {
+                const url = '/' + p.replace(/\\/g, '/');
+                bgImg.style.backgroundImage = 'url(' + url + ')';
+                applyBgTransition(effect);
+            }
+            prevBgKey = bgKey;
+        }
+        const muKey = seg.background_music;
+        if (muKey !== prevMuKey) {
+            if (muKey && imsData.assets && imsData.assets.audios) {
+                const p = imsData.assets.audios[muKey];
+                if (p && p !== curAudioSrc) {
+                    const url = '/' + p.replace(/\\/g, '/');
+                    if (!audioEl) { audioEl = new Audio(); audioEl.loop = true; }
+                    audioEl.src = url;
+                    audioEl.volume = volSlider.value / 100;
+                    if (isAutoPlaying) audioEl.play().catch(()=>{});
+                    curAudioSrc = p;
+                }
+            } else if (!muKey && audioEl) {
+                audioEl.pause();
+                audioEl.src = '';
+                curAudioSrc = '';
+            }
+            prevMuKey = muKey;
+        }
+    }
     updProg();
 }
 
-playBtn.addEventListener('click', togglePlay);
+function typewriterText(text) {
+    if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+    txtOv.textContent = '';
+    if (!text) return;
+    const chars = [...text];
+    let i = 0;
+    function showNext() {
+        if (i < chars.length) {
+            txtOv.textContent += chars[i];
+            i++;
+            typingTimer = setTimeout(showNext, 80);
+        } else {
+            typingTimer = null;
+        }
+    }
+    showNext();
+}
+
+playBtn.addEventListener('click', doManuallyAdvance);
 document.addEventListener('keydown', function(e) {
-    if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+    if (e.key === ' ') {
+        e.preventDefault();
+        doManuallyAdvance();
+    }
     else if (e.key === 'ArrowRight' && !nextBtn.disabled) { doNext(); }
     else if (e.key === 'ArrowLeft' && !prevBtn.disabled) { doPrev(); }
 });
 
-function togglePlay() {
+autoBtn.addEventListener('click', toggleAutoPlay);
+
+// ========== 手动推进下一句 ==========
+function doManuallyAdvance() {
     if (!imsData) return;
-    if (isPlaying) { pause(); } else { resume(); }
-}
-
-function resume() {
-    if (isPlaying) return;
-    isPlaying = true;
-    playBtn.textContent = '⏸';
-    if (pauseAt !== null) { pauseAccum += (Date.now() - pauseAt) / 1000; pauseAt = null; }
-    startReal = Date.now();
-    if (audioEl && audioEl.src) audioEl.play().catch(()=>{});
-    startTimer();
-}
-
-function pause() {
-    if (!isPlaying) return;
-    isPlaying = false;
-    playBtn.textContent = '▶';
-    stopTimer();
-    pauseAt = Date.now();
-    if (audioEl) audioEl.pause();
-}
-
-function startTimer() {
-    stopTimer();
-    timerId = setInterval(check, 200);
-}
-
-function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
-
-function check() {
-    if (!imsData || !imsData.timeline || !isPlaying) return;
-    const elapsed = (Date.now() - startReal) / 1000 - pauseAccum;
-    const tl = imsData.timeline;
-    let found = -1;
-    for (let i = 0; i < tl.length; i++) {
-        const s = tl[i];
-        if (s.start_time <= elapsed && elapsed < s.start_time + s.duration) { found = i; break; }
-    }
-    if (found === -1) {
-        if (elapsed >= tl[tl.length-1].start_time + tl[tl.length-1].duration) {
-            pause();
-            playBtn.textContent = '▶';
-        }
+    if (isEnded) {
+        // 已结束 → 从头重新开始
+        isEnded = false;
+        curIdx = 0;
+        curSentIdx = 0;
+        showSeg(0);
+        if (audioEl && audioEl.src) audioEl.play().catch(()=>{});
+        // 如果自动模式开启，重置计时器
+        if (isAutoPlaying) resetAutoTimer();
         return;
     }
-    if (found !== curIdx) showSeg(found);
+    // 手动推进一句
+    if (audioEl && audioEl.src) audioEl.play().catch(()=>{});
+    advanceSentence();
+    // 如果自动模式开启，重置计时器
+    if (isAutoPlaying) resetAutoTimer();
+}
+
+// ========== 自动播放开关 ==========
+function toggleAutoPlay() {
+    if (!imsData) return;
+    if (isEnded) {
+        isEnded = false;
+        curIdx = 0;
+        curSentIdx = 0;
+        showSeg(0);
+        if (audioEl && audioEl.src) audioEl.play().catch(()=>{});
+    }
+    if (isAutoPlaying) {
+        // 关闭自动播放
+        isAutoPlaying = false;
+        autoBtn.textContent = '🔄 自动';
+        autoBtn.classList.remove('active');
+        stopAutoTimer();
+    } else {
+        // 开启自动播放
+        isAutoPlaying = true;
+        autoBtn.textContent = '🔄 自动（开）';
+        autoBtn.classList.add('active');
+        if (audioEl && audioEl.src) audioEl.play().catch(()=>{});
+        startAutoTimer();
+    }
+}
+
+// ========== 推进到下一句（内部函数） ==========
+function advanceSentence() {
+    if (!imsData || !imsData.timeline) return;
+    const seg = imsData.timeline[curIdx];
+    const sentences = getSentences(seg);
+    if (curSentIdx < sentences.length - 1) {
+        // 段内下一句
+        curSentIdx++;
+        if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+        typewriterText(sentences[curSentIdx].text || '');
+    } else if (curIdx < imsData.timeline.length - 1) {
+        // 下一段
+        curIdx++;
+        curSentIdx = 0;
+        showSeg(curIdx);
+    } else {
+        // 全部播放完毕
+        isEnded = true;
+        isAutoPlaying = false;
+        autoBtn.textContent = '🔄 自动';
+        autoBtn.classList.remove('active');
+        stopAutoTimer();
+        if (audioEl) audioEl.pause();
+        showToast('已全部播放完毕，点击「下一句」重新开始');
+    }
+    updProg();
+}
+
+// ========== 自动播放计时器 ==========
+function startAutoTimer() {
+    stopAutoTimer();
+    autoTimer = setInterval(() => {
+        if (!isAutoPlaying || isEnded) {
+            stopAutoTimer();
+            return;
+        }
+        advanceSentence();
+        if (isEnded) stopAutoTimer();
+    }, SENTENCE_INTERVAL);
+}
+
+function stopAutoTimer() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+}
+
+function resetAutoTimer() {
+    stopAutoTimer();
+    if (isAutoPlaying && !isEnded) startAutoTimer();
+}
+
+function showToast(msg) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const t = document.createElement('div');
+    t.className = 'toast toast-success';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
 }
 
 function doNext() {
-    if (!imsData || !imsData.timeline || curIdx >= imsData.timeline.length - 1) return;
-    const nextSeg = imsData.timeline[curIdx + 1];
-    showSeg(curIdx + 1);
-    if (isPlaying) {
-        const now = Date.now();
-        startReal = now;
-        pauseAccum = -nextSeg.start_time;
-        pauseAt = null;
-    }
+    if (!imsData || !imsData.timeline) return;
+    if (curIdx >= imsData.timeline.length - 1) return;
+    curIdx++;
+    curSentIdx = 0;
+    showSeg(curIdx);
+    updProg();
 }
 
 function doPrev() {
     if (!imsData || !imsData.timeline || curIdx <= 0) return;
-    const prevSeg = imsData.timeline[curIdx - 1];
-    showSeg(curIdx - 1);
-    if (isPlaying) {
-        const now = Date.now();
-        startReal = now;
-        pauseAccum = -prevSeg.start_time;
-        pauseAt = null;
-    }
+    curIdx--;
+    curSentIdx = 0;
+    showSeg(curIdx);
+    updProg();
 }
 
 nextBtn.addEventListener('click', doNext);
@@ -242,8 +349,11 @@ prevBtn.addEventListener('click', doPrev);
 
 startBtn.addEventListener('click', function() {
     if (!imsData) return;
+    curIdx = 0;
+    curSentIdx = 0;
+    isEnded = false;
     showSeg(0);
-    if (isPlaying) { const now = Date.now(); startReal = now; pauseAccum = 0; pauseAt = null; }
+    updProg();
 });
 
 function updProg() {
@@ -255,7 +365,6 @@ volSlider.addEventListener('input', function() {
     if (audioEl) audioEl.volume = this.value / 100;
 });
 
-// 存档：保存按钮改为显示提示（存档/读档功能需先加载作品）
 saveBtn.addEventListener('click', function() {
     if (!imsData) return;
     openSlotGrid('save-grid', 'save');
@@ -282,22 +391,19 @@ async function openSlotGrid(gridId, mode) {
         const el = document.createElement('div');
         el.className = 'slot-btn' + (info ? '' : ' empty');
         if (info) {
-            el.innerHTML = `<strong>槽位 ${s+1}</strong><br>${info.filename||''}<br>第${(info.segment_index||0)+1}段<br><small>${info.timestamp||''}</small>`;
+            el.innerHTML = '<strong>槽位 '+(s+1)+'</strong><br>'+(info.filename||'')+'<br>第'+((info.segment_index||0)+1)+'段<br><small>'+(info.timestamp||'')+'</small>';
         } else {
-            el.innerHTML = `<strong>槽位 ${s+1}</strong><br><span style="color:#666;">[空]</span>`;
+            el.innerHTML = '<strong>槽位 '+(s+1)+'</strong><br><span style="color:#666;">[空]</span>';
         }
         el.addEventListener('click', function() {
-            if (mode === 'save') {
-                doSave(s);
-            } else if (mode === 'load' && info) {
-                doLoadSave(s, info);
-            }
+            if (mode === 'save') { doSave(s); }
+            else if (mode === 'load' && info) { doLoadSave(s, info); }
         });
         grid.appendChild(el);
     }
 }
 
-async function doSave(slot, info) {
+async function doSave(slot) {
     const fn = selFile.value;
     if (!fn) return alert('请先加载作品');
     try {
@@ -323,27 +429,30 @@ async function doLoadSave(slot, info) {
         authorD.textContent = m.author ? ('—— ' + m.author) : '';
         let idx = (info.segment_index || 0);
         if (idx >= imsData.timeline.length) idx = 0;
+        curIdx = idx;
+        curSentIdx = 0;
+        isEnded = false;
         showSeg(idx);
         updProg();
-        enb(true); isPlaying = false; stopTimer();
+        enb(true); isAutoPlaying = false;
         playBtn.textContent = '▶';
         selFile.value = info.filename;
         closeModal('load-modal');
     } catch(e) { alert('读档失败'); }
 }
 
-// 回想
 recallBtn.addEventListener('click', function() {
     if (!imsData || !imsData.timeline) return;
     let t = '=== 回想模式 ===\n\n';
     imsData.timeline.forEach((seg, i) => {
         const mk = (i === curIdx) ? ' ← 当前位置' : '';
-        t += `段 ${i+1}: ${seg.text}${mk}\n`;
+        const sentences = getSentences(seg);
+        const fullText = sentences.map(s => s.text).join(' ');
+        t += '段 '+(i+1)+': '+fullText+mk+'\n';
     });
     alert(t);
 });
 
-// 点击遮罩关闭弹窗（使用 style.css 的 .hidden 类）
 ['save-modal','load-modal'].forEach(id => {
     $(id).addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });

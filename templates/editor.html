@@ -87,9 +87,11 @@
     </div>
 
 <script>
-/* ===========================
-   编辑器核心脚本
-   =========================== */
+/* ===========================================
+   编辑器核心脚本 v2.0 — 段落嵌套句子结构
+   变更：删除起始时间/持续时间；入口复选框
+   未选中时隐藏图片/音乐/效果控件；支持句子书写
+   =========================================== */
 let segments = [];
 let projectImages = [];   // 当前项目的图片资源（非全局）
 let projectAudios = [];   // 当前项目的音频资源（非全局）
@@ -120,6 +122,7 @@ async function uploadFile(type) {
             showToast('✅ 已上传: ' + d.filename, 'success');
             if (type === 'image') { projectImages.push(d.filename); renderImageList(); }
             else { projectAudios.push(d.filename); renderAudioList(); }
+            renderTimeline();
         } else {
             showToast('上传失败: ' + (d.error || ''), 'error');
         }
@@ -128,7 +131,6 @@ async function uploadFile(type) {
 }
 
 async function loadAssets() {
-    // 新建项目时：资源列表初始为空，用户通过上传按钮添加
     projectImages = [];
     projectAudios = [];
     renderImageList();
@@ -147,24 +149,28 @@ function renderAudioList() {
     ul.innerHTML = projectAudios.map(f => '<li><span class="resource-name" title="'+f+'">🎵 '+f+'</span></li>').join('');
 }
 
+// ========== 复选框切换：立即保存编辑内容，切换入口状态，重新渲染 ==========
+function toggleEntry(idx, el) {
+    segments = collectSegmentsFromDOM();
+    segments[idx].entry_point = el.checked;
+    renderTimeline();
+}
+
+// ========== 创建段落数据（v2.0：无 start_time/duration，采用 sentences 数组） ==========
 function createSegmentData(d) {
     d = d || {};
-    const prevEnd = segments.length ? segments[segments.length-1].start_time + segments[segments.length-1].duration : 0;
     return {
         segment_id: segmentCounter++,
-        text: d.text || '',
-        start_time: d.start_time !== undefined ? d.start_time : prevEnd,
-        duration: d.duration !== undefined ? d.duration : 8.0,
+        entry_point: d.entry_point !== undefined ? d.entry_point : true,
         background: d.background || (projectImages.length ? projectImages[0] : ''),
         background_music: d.background_music || '',
-        transition_effect: d.transition_effect || 'cross_fade'
+        transition_effect: d.transition_effect || 'cross_fade',
+        sentences: d.sentences || [{id: 1, text: d.text || ''}]
     };
 }
 
 function addSegment(d) {
-    // 先把当前 DOM 中的编辑内容回写到 segments，避免丢失已编辑文字
     segments = collectSegmentsFromDOM();
-    // 同步 segmentCounter 确保 ID 不重复
     segmentCounter = segments.length + 1;
     segments.push(createSegmentData(d || {}));
     renderTimeline();
@@ -178,61 +184,135 @@ function removeSegment(idx) {
     renderTimeline();
 }
 
+// ========== 句子操作 ==========
+function addSentence(segIdx) {
+    segments = collectSegmentsFromDOM();
+    const sents = segments[segIdx].sentences;
+    const newId = sents.length ? Math.max(...sents.map(s => s.id)) + 1 : 1;
+    sents.push({id: newId, text: ''});
+    renderTimeline();
+}
+
+function removeSentence(segIdx, sentIdx) {
+    segments = collectSegmentsFromDOM();
+    const sents = segments[segIdx].sentences;
+    if (sents.length <= 1) { showToast('每个段落至少保留一个句子', 'error'); return; }
+    sents.splice(sentIdx, 1);
+    renderTimeline();
+}
+
+// ========== 渲染时间轴 — 核心逻辑 ==========
 function renderTimeline() {
     const c = $('timeline-container');
     if (!segments.length) { c.innerHTML = '<div class="empty-state"><span class="empty-icon">📝</span><p>点击下方按钮添加段落</p></div>'; return; }
     c.innerHTML = segments.map((seg,i) => {
-        const imgs = projectImages.map(f => '<option value="'+f+'"'+(seg.background===f?' selected':'')+'>'+f+'</option>').join('');
-        const auds = '<option value="">-- 无 --</option>' + projectAudios.map(f => '<option value="'+f+'"'+(seg.background_music===f?' selected':'')+'>'+f+'</option>').join('');
-        const effs = [{v:'cross_fade',l:'交叉淡入淡出'},{v:'fade_in',l:'淡入'},{v:'none',l:'无效果'}];
-        const effOpts = effs.map(e => '<option value="'+e.v+'"'+(seg.transition_effect===e.v?' selected':'')+'>'+e.l+'</option>').join('');
+        const isEntry = seg.entry_point !== false;
+        const entryChecked = isEntry ? 'checked' : '';
+
+        // 入口资源编辑区：仅当“入口”复选框选中时才显示
+        let resourceHTML = '';
+        if (isEntry) {
+            const imgs = projectImages.map(f => '<option value="'+f+'"'+(seg.background===f?' selected':'')+'>'+f+'</option>').join('');
+            const auds = '<option value="">-- 无 --</option>' + projectAudios.map(f => '<option value="'+f+'"'+(seg.background_music===f?' selected':'')+'>'+f+'</option>').join('');
+            const effs = [{v:'cross_fade',l:'交叉淡入淡出'},{v:'fade_in',l:'淡入'},{v:'none',l:'无效果'}];
+            const effOpts = effs.map(e => '<option value="'+e.v+'"'+(seg.transition_effect===e.v?' selected':'')+'>'+e.l+'</option>').join('');
+            resourceHTML = '<div class="entry-resources">'
+                + '<div class="form-row"><div class="form-group"><label>🖼️ 背景图</label><select class="seg-bg">'+imgs+'</select></div>'
+                + '<div class="form-group"><label>🎵 背景音乐</label><select class="seg-music">'+auds+'</select></div></div>'
+                + '<div class="form-group"><label>✨ 切换效果</label><select class="seg-effect">'+effOpts+'</select></div>'
+                + '</div>';
+        } else {
+            resourceHTML = '<p class="inherit-hint">⬆️ 非入口段落，继承上一入口的图片和音乐设置</p>';
+        }
+
+        // 句子列表
+        const sents = seg.sentences && seg.sentences.length ? seg.sentences : [{id:1, text:''}];
+        let sentsHTML = '<div class="sentences-list">';
+        sents.forEach((s, si) => {
+            sentsHTML += '<div class="sentence-item" data-sent-index="'+si+'">'
+                + '<span class="sentence-number">'+(si+1)+'.</span>'
+                + '<textarea class="sent-text" rows="1" placeholder="输入句子文字…">'+escapeHtml(s.text||'')+'</textarea>'
+                + '<button class="btn btn-danger btn-del-sent" onclick="removeSentence('+i+','+si+')" title="删除此句">✕</button>'
+                + '</div>';
+        });
+        sentsHTML += '</div>';
+        sentsHTML += '<button class="btn btn-secondary btn-add-sent" onclick="addSentence('+i+')" style="margin-top:6px;">＋ 添加句子</button>';
+
         return '<div class="segment-card" data-index="'+i+'">'
-            +'<div class="segment-card-header"><span class="segment-title">📌 段落 '+(i+1)+'</span><button class="btn btn-danger btn-small" onclick="removeSegment('+i+')">✕ 删除</button></div>'
-            +'<div class="form-group"><label>段落文字 *</label><textarea class="seg-text" rows="2" placeholder="输入该段显示的文字">'+escapeHtml(seg.text)+'</textarea></div>'
-            +'<div class="form-row"><div class="form-group"><label>起始时间（秒）</label><input type="number" class="seg-start" value="'+seg.start_time+'" step="0.5" min="0"></div><div class="form-group"><label>持续时长（秒）</label><input type="number" class="seg-duration" value="'+seg.duration+'" step="0.5" min="1"></div></div>'
-            +'<div class="form-row"><div class="form-group"><label>背景图</label><select class="seg-bg">'+imgs+'</select></div><div class="form-group"><label>背景音乐</label><select class="seg-music">'+auds+'</select></div></div>'
-            +'<div class="form-group"><label>切换效果</label><select class="seg-effect">'+effOpts+'</select></div></div>';
+            + '<div class="segment-card-header">'
+            + '<span class="segment-title">📌 段落 '+(i+1)+'</span>'
+            + '<label class="entry-check-label"><input type="checkbox" class="seg-entry" '+entryChecked+' onchange="toggleEntry('+i+', this)"> 🔔 入口</label>'
+            + '<button class="btn btn-danger btn-small" onclick="removeSegment('+i+')">✕ 删除</button>'
+            + '</div>'
+            + '<div class="segment-body">'
+            + '<div class="form-group"><label>📝 本段句子（播放时每按一次显示一句）</label>' + sentsHTML + '</div>'
+            + resourceHTML
+            + '</div>'
+            + '</div>';
     }).join('');
 }
 
-function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
+// ========== 从 DOM 收集段落数据（含句子嵌套） ==========
 function collectSegmentsFromDOM() {
     const cards = document.querySelectorAll('.segment-card');
     const r = [];
-    cards.forEach((card,i) => r.push({
-        segment_id: i+1,
-        text: card.querySelector('.seg-text').value.trim(),
-        start_time: parseFloat(card.querySelector('.seg-start').value)||0,
-        duration: parseFloat(card.querySelector('.seg-duration').value)||8,
-        background: card.querySelector('.seg-bg').value,
-        background_music: card.querySelector('.seg-music').value,
-        transition_effect: card.querySelector('.seg-effect').value
-    }));
+    cards.forEach((card,i) => {
+        const sentItems = card.querySelectorAll('.sentence-item');
+        const sentences = [];
+        sentItems.forEach((se, si) => {
+            const ta = se.querySelector('.sent-text');
+            sentences.push({id: si+1, text: ta ? ta.value.trim() : ''});
+        });
+        const entryChecked = card.querySelector('.seg-entry').checked;
+        let bg = '', mu = '', eff = 'cross_fade';
+        if (entryChecked) {
+            const bgSel = card.querySelector('.seg-bg');
+            const muSel = card.querySelector('.seg-music');
+            const effSel = card.querySelector('.seg-effect');
+            bg = bgSel ? bgSel.value : '';
+            mu = muSel ? muSel.value : '';
+            eff = effSel ? effSel.value : 'cross_fade';
+        }
+        r.push({
+            segment_id: i+1,
+            entry_point: entryChecked,
+            background: bg,
+            background_music: mu,
+            transition_effect: eff,
+            sentences: sentences
+        });
+    });
     return r;
 }
 
+// ========== 保存文件 ==========
 async function saveFile() {
     const title = $('meta-title').value.trim(), author = $('meta-author').value.trim(), creator = $('meta-creator').value.trim();
     if (!title || !author || !creator) { showToast('请填写作品标题、原文作者和创作者','error'); return; }
     const tl = collectSegmentsFromDOM();
     if (!tl.length) { showToast('请至少添加一个段落','error'); return; }
-    for (let i=0;i<tl.length;i++) if (!tl[i].text) { showToast('段落'+(i+1)+'的文字不能为空','error'); return; }
-    const imgAs={},audAs={};
-    // 修正：timeline 中 background/background_music 存别名而非文件名
+    for (let i=0;i<tl.length;i++) {
+        const sents = tl[i].sentences;
+        if (!sents || !sents.length || !sents.some(s => s.text)) {
+            showToast('段落'+(i+1)+'至少需要一个非空句子','error'); return;
+        }
+    }
+    const imgAs={}, audAs={};
     tl.forEach(s=>{
-        if(s.background){
+        if(s.entry_point && s.background){
             const alias = s.background.replace(/\.[^.]+$/,'');
             imgAs[alias] = 'data/images/'+s.background;
-            s.background = alias; // ← 关键：存储别名
+            s.background = alias;
         }
-        if(s.background_music){
+        if(s.entry_point && s.background_music){
             const alias = s.background_music.replace(/\.[^.]+$/,'');
             audAs[alias] = 'data/audio/'+s.background_music;
-            s.background_music = alias; // ← 关键：存储别名
+            s.background_music = alias;
         }
     });
-    const ims = {version:'1.0',metadata:{title,author,creator,description:$('meta-desc').value.trim()},assets:{images:imgAs,audios:audAs},timeline:tl};
+    const ims = {version:'1.1',metadata:{title,author,creator,description:$('meta-desc').value.trim()},assets:{images:imgAs,audios:audAs},timeline:tl};
     try {
         const r = await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ims)});
         const d = await r.json();
@@ -241,6 +321,7 @@ async function saveFile() {
     } catch(e) { showToast('保存失败: 网络错误','error'); }
 }
 
+// ========== 文件打开弹窗 ==========
 async function openFileModal() {
     const m=$('file-modal'),l=$('file-list'); m.classList.remove('hidden'); l.innerHTML='<li class="empty-state"><p>加载中...</p></li>';
     try {
@@ -251,13 +332,13 @@ async function openFileModal() {
 function closeFileModal() { $('file-modal').classList.add('hidden'); }
 $('file-modal').addEventListener('click',function(e){if(e.target===this)closeFileModal();});
 
+// ========== 加载文件（兼容旧版 text 字段 → sentences） ==========
 async function loadFile(fn) {
     try {
         const r = await fetch('/api/load?file='+encodeURIComponent(fn)); if(!r.ok){showToast('文件加载失败','error');return;}
         const d = await r.json();
         const m = d.metadata||{};
         $('meta-title').value=m.title||'';$('meta-author').value=m.author||'';$('meta-creator').value=m.creator||'';$('meta-desc').value=m.description||'';
-        // 解析该项目专属的资源列表（从 assets.images 和 assets.audios）
         projectImages=[];projectAudios=[];
         if(d.assets){
             if(d.assets.images){
@@ -277,12 +358,28 @@ async function loadFile(fn) {
         segments=[];segmentCounter=1;
         (d.timeline||[]).forEach(s=>{
             let bg='',mu='';
-            if(s.background&&d.assets&&d.assets.images){const p=d.assets.images[s.background];if(p)bg=p.replace(/\\/g,'/').split('/').pop()||'';}
-            if(s.background_music&&d.assets&&d.assets.audios){const p=d.assets.audios[s.background_music];if(p)mu=p.replace(/\\/g,'/').split('/').pop()||'';}
-            segments.push({segment_id:segmentCounter++,text:s.text||'',start_time:s.start_time||0,duration:s.duration||8,background:bg,background_music:mu,transition_effect:s.transition_effect||'cross_fade'});
+            if(s.entry_point !== false && s.background && d.assets && d.assets.images){
+                const p=d.assets.images[s.background];
+                if(p)bg=p.replace(/\\/g,'/').split('/').pop()||'';
+            }
+            if(s.entry_point !== false && s.background_music && d.assets && d.assets.audios){
+                const p=d.assets.audios[s.background_music];
+                if(p)mu=p.replace(/\\/g,'/').split('/').pop()||'';
+            }
+            let sentences = s.sentences;
+            if (!sentences && s.text) { sentences = [{id: 1, text: s.text}]; }
+            if (!sentences || !sentences.length) { sentences = [{id: 1, text: ''}]; }
+            segments.push({
+                segment_id: segmentCounter++,
+                entry_point: s.entry_point !== false,
+                background: bg,
+                background_music: mu,
+                transition_effect: s.transition_effect || 'cross_fade',
+                sentences: sentences
+            });
         });
-        if(!segments.length)addSegment();
-        renderTimeline();closeFileModal();showToast('✅ 已加载: '+fn+'（资源已自动关联）','success');
+        if(!segments.length) addSegment();
+        renderTimeline();closeFileModal();showToast('✅ 已加载: '+fn,'success');
     } catch(e) { showToast('加载失败: 格式错误','error'); }
 }
 

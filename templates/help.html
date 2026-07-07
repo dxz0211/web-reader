@@ -7,12 +7,104 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="navbar">
-        <a href="/editor">编辑器</a>
-        <a href="/player">播放器</a>
-        <a href="/help" class="active">帮助</a>
+    <nav class="navbar">
+        <a class="navbar-brand" href="/">📖 Immersion Reader</a>
+        <div class="navbar-links">
+            <a href="/editor">✏️ 编辑器</a>
+            <a href="/player">▶️ 播放器</a>
+            <a href="/help" class="active">❓ 帮助</a>
+        </div>
+    </nav>
+
+    <div class="help-container">
+        <h1>帮助文档</h1>
+        <p class="help-subtitle">Immersion Reader v2.0 — 沉浸式阅读创作平台</p>
+
+        <div class="help-section">
+            <h2>📖 概述</h2>
+            <p>Immersion Reader 是一个沉浸式阅读创作平台，支持创作者制作带有背景图片、背景音乐和过渡效果的交互式阅读作品，读者可以在播放器中以手动或自动方式逐句阅读。</p>
+        </div>
+
+        <div class="help-section">
+            <h2>✏️ 编辑器使用说明</h2>
+            <ol>
+                <li><strong>填写作品信息</strong>：在左侧面板填写作品标题、原文作者、创作者和作品简介。</li>
+                <li><strong>添加段落</strong>：点击「＋ 添加段落」按钮创建新的段落。</li>
+                <li><strong>添加句子</strong>：每个段落内可添加多个句子，播放时每点击一次显示一句。</li>
+                <li><strong>设置入口段落</strong>：勾选「🔔 入口」复选框的段落可以设置背景图、背景音乐和切换效果。未勾选的段落会自动继承上一入口的设置。</li>
+                <li><strong>上传资源</strong>：通过右侧面板上传图片和音频文件，上传后可在段落的下拉菜单中选用。</li>
+                <li><strong>保存作品</strong>：点击「💾 保存」按钮或按 <kbd class="kbd">Ctrl+S</kbd> 保存为 .ims 文件。</li>
+            </ol>
+        </div>
+
+        <div class="help-section">
+            <h2>▶️ 播放器使用说明</h2>
+            <ol>
+                <li><strong>加载作品</strong>：在上方下拉菜单中选择一个 .ims 文件，点击「加载」按钮。</li>
+                <li><strong>手动阅读</strong>：加载后显示第一段第一句，点击「▶ 下一句」或按 <kbd class="kbd">空格</kbd> 逐句推进。</li>
+                <li><strong>自动播放</strong>：点击「🔄 自动」开启自动模式，每句话显示3秒后自动切换到下一句。</li>
+                <li><strong>自动+手动混合</strong>：自动模式中仍可点击「下一句」手动提前切换，计时器会自动重置。</li>
+                <li><strong>章节跳转</strong>：使用「◀ 上段」「下段 ▶」按钮或键盘 <kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> 键切换段落。</li>
+                <li><strong>回到开头</strong>：点击「⏮ 开头」按钮返回作品第一段。</li>
+                <li><strong>音量调节</strong>：使用底部的音量滑块调节背景音乐音量。</li>
+            </ol>
+        </div>
+
+        <div class="help-section">
+            <h2>💾 存档与读档</h2>
+            <p>播放器支持10个存档槽位，方便保存和恢复阅读进度：</p>
+            <ol>
+                <li>点击「💾 存档」按钮，选择槽位保存当前进度。</li>
+                <li>点击「📂 读档」按钮，选择存档槽位恢复之前的阅读位置。</li>
+                <li>存档会记录当前所在的段落索引，下次加载自动跳转到该位置。</li>
+            </ol>
+        </div>
+
+        <div class="help-section">
+            <h2>📖 回想模式</h2>
+            <p>点击「📖 回想」按钮可以查看作品所有段落的完整文字内容，方便回顾上下文。当前段落会以高亮标记。</p>
+        </div>
+
+        <div class="help-section">
+            <h2>⌨️ 快捷键一览</h2>
+            <table class="kbd-table">
+                <thead>
+                    <tr><th>快捷键</th><th>功能</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><kbd class="kbd">空格</kbd></td><td>播放器中手动推进到下一句</td></tr>
+                    <tr><td><kbd class="kbd">←</kbd></td><td>切换到上一段落</td></tr>
+                    <tr><td><kbd class="kbd">→</kbd></td><td>切换到下一段落</td></tr>
+                    <tr><td><kbd class="kbd">Ctrl+S</kbd></td><td>在编辑器中保存作品</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="help-section">
+            <h2>📂 IMS 文件格式</h2>
+            <p>.ims 是 Immersion Reader 的作品文件格式，使用 JSON 存储。其结构包含：</p>
+            <ul>
+                <li><strong>metadata</strong>：作品元数据（标题、作者、创作者、简介）</li>
+                <li><strong>assets</strong>：资源映射（图片和音频文件的别名与路径）</li>
+                <li><strong>timeline</strong>：段落时间轴，每个段落包含：</li>
+                <ul>
+                    <li><strong>entry_point</strong>：是否为入口段落（决定是否切换背景和音乐）</li>
+                    <li><strong>background / background_music</strong>：背景图片和音乐的别名</li>
+                    <li><strong>transition_effect</strong>：切换效果（cross_fade / fade_in / none）</li>
+                    <li><strong>sentences</strong>：句子数组（播放时逐句显示）</li>
+                </ul>
+            </ul>
+            <p>旧版 .ims 文件（使用 text 字段而非 sentences 数组）能被自动兼容加载。</p>
+        </div>
+
+        <div class="help-section">
+            <h2>📅 开发日志</h2>
+            <ul>
+                <li><strong>Day 1</strong>：项目初始化，搭建 Flask 基本框架和路由</li>
+                <li><strong>Day 2</strong>：编辑器功能开发（段落管理、资源上传）、播放器基本功能</li>
+                <li><strong>Day 3</strong>：段落嵌套句子结构、入口/非入口分离、打字机动画效果、三种背景切换效果、手动/自动播放模式分离、帮助页面</li>
+            </ul>
+        </div>
     </div>
-    <h1>帮助</h1>
-    <p>帮助文档待完善。</p>
 </body>
 </html>

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 环境
+env/
+venv/
+.venv/
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Playwright 调试日志
+.playwright-mcp/
+
+# 存档数据（用户数据不提交）
+savedata/*.json
+savedata/*.txt
+
+# 系统生成
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 备份文件
+templates/player_new.html
+debug_log.txt
+
+# 媒体文件太大不提交（除非是测试用的小文件）
+data/audio/*.mp3
+data/audio/*.wav
+data/audio/*.ogg
+data/images/*.jpg
+data/images/*.jpeg
+data/images/*.png
+data/images/*.gif
