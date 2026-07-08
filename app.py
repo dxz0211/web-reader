@@ -14,7 +14,7 @@ IMAGES_DIR = os.path.join(DATA_DIR, "images")
 AUDIO_DIR = os.path.join(DATA_DIR, "audio")
 SAVEDATA_DIR = os.path.join(BASE_DIR, "savedata")
 
-for d in [DATA_DIR, SAVEDATA_DIR]:
+for d in [DATA_DIR, SAVEDATA_DIR, IMAGES_DIR, AUDIO_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # ============================================================
@@ -31,6 +31,31 @@ def list_files(directory, extensions=None):
         else:
             files.append(f)
     return sorted(files)
+
+# ============================================================
+# 调试端点：确认 Railway 上的文件目录结构（答辩后可删除）
+# ============================================================
+@app.route("/debug/paths")
+def debug_paths():
+    def safe_list(d):
+        try:
+            if os.path.isdir(d):
+                return os.listdir(d)
+            return ["目录不存在"]
+        except Exception as e:
+            return [str(e)]
+    return {
+        "BASE_DIR": BASE_DIR,
+        "DATA_DIR": DATA_DIR,
+        "DATA_EXISTS": os.path.isdir(DATA_DIR),
+        "DATA_FILES": safe_list(DATA_DIR),
+        "IMAGES_DIR": IMAGES_DIR,
+        "IMAGES_EXISTS": os.path.isdir(IMAGES_DIR),
+        "IMAGES_FILES": safe_list(IMAGES_DIR),
+        "AUDIO_DIR": AUDIO_DIR,
+        "AUDIO_EXISTS": os.path.isdir(AUDIO_DIR),
+        "AUDIO_FILES": safe_list(AUDIO_DIR),
+    }
 
 # ============================================================
 # 页面路由
