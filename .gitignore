@@ -35,10 +35,10 @@ templates/player_new.html
 debug_log.txt
 
 # 媒体文件太大不提交（除非是测试用的小文件）
-data/audio/*.mp3
-data/audio/*.wav
-data/audio/*.ogg
-data/images/*.jpg
-data/images/*.jpeg
-data/images/*.png
-data/images/*.gif
+#data/audio/*.mp3
+#data/audio/*.wav
+#data/audio/*.ogg
+#data/images/*.jpg
+#data/images/*.jpeg
+#data/images/*.png
+#data/images/*.gif
